@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.log
+.local/
+.local/analysis-projects/
+.verification/
+.streamlit/secrets.toml
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.pytest_cache/
+test-results/
+playwright-report/

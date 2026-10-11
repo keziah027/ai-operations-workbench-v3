@@ -1,0 +1,87 @@
+:root {
+  --workspace-green: #47795c;
+  --workspace-ink: #244633;
+  --workspace-mint: #e9f4ec;
+  --workspace-border: #c8dfcf;
+}
+[data-testid="stAppViewContainer"], [data-testid="stHeader"] { background: #ffffff; }
+[data-testid="stMainBlockContainer"] { padding-top: 3rem; }
+h1, h2, h3 { color: var(--workspace-ink); }
+[data-testid="stCaptionContainer"] { color: #64796b; }
+
+/* 三块数据来源入口；保留原生单选框和键盘操作。 */
+[data-testid="stRadio"] [role="radiogroup"] {
+  display: flex; flex-wrap: wrap; gap: 14px; width: 100%; max-width: 900px;
+}
+[data-testid="stRadioGroup"] > div { flex: 1 1 180px; min-width: 0; }
+[data-testid="stRadioOption"] {
+  display: flex; width: 100%; min-height: 94px; margin: 0; padding: 18px 22px;
+  box-sizing: border-box; background: #edf5ef; border: 1px solid var(--workspace-border);
+  border-radius: 10px; box-shadow: 0 3px 10px #24463306;
+  transition: background .15s ease, border-color .15s ease;
+}
+[data-testid="stRadioOption"]:hover {
+  background: #edf6ef; border-color: #90b79e;
+}
+[data-testid="stRadioOption"]:has(input:checked) {
+  background: #dceee1; border: 2px solid #7fa98c; padding: 17px 21px;
+}
+[data-testid="stRadioOption"] p {
+  color: var(--workspace-ink); font-size: 1.02rem; font-weight: 600;
+}
+
+/* 淡绿、短圆角、方块感按钮。 */
+[data-testid="stButton"] button,
+[data-testid="stDownloadButton"] button,
+[data-testid="stLinkButton"] a,
+[data-testid="stFileUploader"] button {
+  min-height: 60px; min-width: 138px; padding: 14px 20px;
+  border: 1px solid #b8d5c2; border-radius: 8px;
+  background: var(--workspace-mint); color: var(--workspace-ink);
+  box-shadow: 0 3px 0 #dce9e0;
+  transition: background .15s ease, border-color .15s ease, transform .15s ease;
+}
+[data-testid="stButton"] button[kind="primary"] {
+  background: #cbe6d4; border-color: #96bea4; font-weight: 600;
+}
+[data-testid="stButton"] button:hover:not(:disabled),
+[data-testid="stDownloadButton"] button:hover:not(:disabled),
+[data-testid="stLinkButton"] a:hover,
+[data-testid="stFileUploader"] button:hover:not(:disabled) {
+  background: #d7eadc; border-color: #7fa98c; color: #1e4830; transform: translateY(-1px);
+}
+[data-testid="stButton"] button:active:not(:disabled),
+[data-testid="stDownloadButton"] button:active:not(:disabled) {
+  transform: translateY(1px); box-shadow: none;
+}
+[data-testid="stButton"] button:disabled,
+[data-testid="stDownloadButton"] button:disabled { opacity: .5; box-shadow: none; }
+button:focus-visible, a:focus-visible,
+[data-testid="stRadio"] label:has(input:focus-visible) {
+  outline: 3px solid #47795c !important; outline-offset: 3px;
+}
+[data-testid="stAlertContainer"] { border-radius: 10px; }
+[data-testid="stAlertContainer"]:has([data-testid="stAlertContentInfo"]) {
+  background: #e7f2ea; border: 1px solid #d4e6da;
+}
+[data-testid="stAlertContentInfo"] [data-testid="stMarkdownContainer"] { color: #3c644b; }
+[data-testid="stFileUploaderDropzone"] {
+  background: #edf5ef; border: 1px dashed #accbb7; border-radius: 12px;
+}
+[data-testid="stExpander"] > details { background: #f0f7f2; border-color: #c8dfcf; }
+[data-baseweb="tab-list"] { gap: 10px; }
+[data-baseweb="tab"] { border-radius: 7px 7px 0 0; padding: 8px 14px; }
+[data-baseweb="tab"][aria-selected="true"] { background: #e2f0e6; color: #315f42; }
+[data-baseweb="tab-highlight"] { background: #6f9d7f; }
+
+@media (max-width: 600px) {
+  [data-testid="stMainBlockContainer"] { padding-top: 1.6rem; }
+  [data-testid="stRadio"] [role="radiogroup"] { gap: 8px; }
+  [data-testid="stRadioGroup"] > div { flex-basis: 100%; }
+  [data-testid="stRadioOption"] { min-height: 64px; }
+  [data-testid="stButton"] button, [data-testid="stDownloadButton"] button,
+  [data-testid="stLinkButton"] a { width: 100%; min-width: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; }
+}
