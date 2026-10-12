@@ -82,8 +82,8 @@ def render_content_analysis(snapshot):
     prepare_context(snapshot,topics,key)
     tabs = st.tabs(['① 账号画像', '② 内容结构', '③ 高互动规律', '④ 内容包装', '⑤ 运营诊断', '⑥ AI运营助手'])
     with tabs[0]:
-        if f'bio-v2-{key}' not in st.session_state: st.session_state[f'bio-v2-{key}']=clean(snapshot.get('bio'))
-        bio = st.text_area('账号简介（可补充或修正）', key=f'bio-v2-{key}')
+        bio_key = f'bio-v2-{key}'
+        bio = st.text_area('账号简介（可补充或修正）', value=st.session_state.get(bio_key, clean(snapshot.get('bio'))), key=bio_key)
         profile = identify_account(notes, bio)
         st.write(f"**身份初判：{profile['identity']} · 置信度：{profile['identity_confidence']}**")
         st.write(profile['reason'])
@@ -92,8 +92,8 @@ def render_content_analysis(snapshot):
             st.dataframe(profile['candidates'], hide_index=True, width='stretch')
         choice = st.selectbox('账号身份（可修改）', ['采用自动初判'] + IDENTITIES, key=f'identity-v21-{key}')
         identity = profile['identity'] if choice == '采用自动初判' else choice
-        if f'domains-v21-{key}' not in st.session_state: st.session_state[f'domains-v21-{key}']=profile['domains']
-        domains = st.multiselect('内容领域（可多选）', DOMAINS, key=f'domains-v21-{key}')
+        domains_key = f'domains-v21-{key}'
+        domains = st.multiselect('内容领域（可多选）', DOMAINS, default=st.session_state.get(domains_key, profile['domains']), key=domains_key)
         goals = st.multiselect('运营目标（由你确认，可多选）', GOALS, key=f'goals-v21-{key}')
         selection = {'identity':identity, 'domains':domains, 'goals':goals}
         commerce = commerce_context(notes, goals)
