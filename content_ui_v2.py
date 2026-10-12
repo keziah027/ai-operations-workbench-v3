@@ -59,6 +59,11 @@ def markdown_report(snapshot, analysis):
     for name,table in analysis['backend_tables'].items():
         lines += ['## '+name, *rows(table)]
     lines += ['## 人群假设复核记录（含已删除候选）',*rows(analysis.get('audience_all',pd.DataFrame()))]
+    if snapshot.get('is_case_study'):
+        lines += ['## 真实案例来源与限制', snapshot.get('category', ''), snapshot.get('selection_basis', ''),
+                  snapshot.get('scope', ''), snapshot.get('collection_method', ''),
+                  *snapshot.get('warnings', []), '### 内容概述（阅读后整理，非作者原文）']
+        lines += [f"- {note['标题']}：{note.get('内容概述（整理）', '')}" for note in snapshot['notes']]
     lines.append(markdown_appendix(analysis.get('ai',{})))
     return '\n\n'.join(lines)
 
@@ -67,6 +72,12 @@ def render_content_analysis(snapshot):
     if snapshot.get('is_demo'):
         from deployment import DEMO_NOTICE
         st.warning(DEMO_NOTICE)
+    if snapshot.get('is_case_study'):
+        st.info(snapshot.get('scope', '真实账号公开信息快照，非实时数据。'))
+        with st.expander('案例来源、内容概述与分析限制'):
+            for warning in snapshot.get('warnings', []):
+                st.write(warning)
+            show_sources(pd.DataFrame(snapshot['notes']), ['标题', '内容概述（整理）', '笔记链接'])
     notes = normalize_notes(snapshot.get('notes', []))
     st.subheader('账号运营分析 · V3')
     from deployment import public_mode
@@ -154,7 +165,12 @@ def render_content_analysis(snapshot):
         if st.session_state.get(f'interaction-v2-{key}',options[0]) not in options:
             st.session_state[f'interaction-v2-{key}']=options[0]
             st.caption('本次缺少此前比较指标，暂改用互动总量。')
-        metric = st.selectbox('用哪项数据比较高互动内容', options, key=f'interaction-v2-{key}')
+        preferred = snapshot.get('preferred_metric', options[0])
+        metric = st.selectbox('用哪项数据比较高互动内容', options,
+                             index=options.index(preferred) if preferred in options else 0,
+                             key=f'interaction-v2-{key}')
+        if snapshot.get('is_case_study') and preferred != options[0]:
+            st.caption('本案例部分赞藏评显示为缩写数值，未充当精确值统计。默认比较可确认数据较多的指标；可在上方切换。')
         valid, top, comparisons = calculations.get('interactions-v1',[frame,metric],lambda:high_interaction(frame,metric))
         audit = sample_audit(frame, metric)
         st.write(f'本次读取 {len(frame)} 篇；纳入 {len(valid)} 篇；排除 {len(frame)-len(valid)} 篇。只描述纳入样本，不代表全账号规律。')

@@ -57,7 +57,7 @@ def public_account_page():
 
     if public_mode():
         st.subheader('公开账号主页读取')
-        st.info('此功能需要本机浏览器登录，在公开网站上无法弹出你的登录窗口。原版读取功能保留在本地模式；在线请上传已导出的 Excel，或切换到“Excel 文件”加载模拟数据。')
+        st.info('此功能需要本机浏览器登录，在公开网站上无法弹出你的登录窗口。原版读取功能保留在本地模式；在线可切换到“真实账号案例”体验已采集的公开快照，或上传 Excel、加载模拟数据。')
         return
 
     st.subheader("公开账号主页读取")
@@ -108,7 +108,10 @@ def public_account_page():
         st.download_button("导出公开账号数据与分析（Excel）", data=b"", file_name="公开账号.xlsx", disabled=True, key="empty-public-export")
         st.caption("读取账号后，可以在V2五模块分析下方导出全部已读取数据与分析结果。")
         return
-    snapshot = saved["data"]
+    render_public_snapshot(saved["data"])
+
+
+def render_public_snapshot(snapshot):
     notes = pd.DataFrame(normalize_notes(snapshot["notes"]))
     for metric in METRICS:
         notes[metric] = pd.to_numeric(notes[metric], errors="coerce")
@@ -272,20 +275,52 @@ def show_table(df):
     st.dataframe(display, hide_index=True, width="stretch")
 
 
+def real_case_page(cases):
+    from real_cases import case_snapshot, NOTICE
+    st.subheader('真实账号案例')
+    st.caption('使用已采集的真实公开信息体验分析，无需登录。这里不会实时访问账号。')
+    options = {case['id']: case for case in cases}
+    chosen = st.selectbox('选择真实案例', list(options), format_func=lambda item: options[item]['name'])
+    selected = options[chosen]
+    if selected.get('category'):
+        st.write('领域：' + selected['category'])
+    if selected.get('selection_basis'):
+        st.caption(selected['selection_basis'])
+    st.write('采集时间：' + selected['captured_at'])
+    st.write('样本范围：' + selected['scope'])
+    st.link_button('核对账号来源', selected['url'])
+    if st.button('加载真实账号案例', type='primary'):
+        st.session_state['active-real-case-id'] = chosen
+    active = st.session_state.get('active-real-case-id')
+    if active == chosen:
+        st.info('当前分析案例：' + options[active]['name'])
+        render_public_snapshot(case_snapshot(options[active]))
+    else:
+        st.info(NOTICE)
+
+
 def main():
     st.set_page_config(page_title="AI运营工作台", page_icon="🌿", layout="wide")
     st.html("<style>" + Path(__file__).with_name("theme.css").read_text(encoding="utf-8") + "</style>")
     st.title("AI运营工作台")
     st.caption('AI运营分析台 V3 · 作品集公开演示' if public_mode() else '分析小红书历史内容与公开主页数据 · 本地运行')
     if public_mode():
-        st.info('无需注册：点击“加载演示数据”即可体验六个分析模块。AI助手采用规则演示，不调用付费API。')
+        st.info('无需注册：选择“真实账号案例”分析真实公开快照，或点击“加载演示数据”体验模拟账号。AI助手采用规则演示，不调用付费API。')
         st.caption('上传文件仅用于当前访客会话的分析；不会保存到共享项目目录。请勿上传个人隐私或商业机密，离开前可下载报告与项目存档。')
     from project_ui import project_picker
     project_picker()
-    mode = st.radio("数据来源", ["Excel 文件", "公开账号", "我的账号后台"], horizontal=True, width="stretch")
+    from real_cases import list_cases
+    cases = list_cases()
+    sources = ["Excel 文件", "公开账号", "我的账号后台"]
+    if cases:
+        sources.insert(1, "真实账号案例")
+    mode = st.radio("数据来源", sources, horizontal=True, width="stretch")
     if st.session_state.get('show_saved_project') and st.session_state.get('active_project'):
         from content_ui import render_content_analysis
         render_content_analysis(st.session_state['active_project']['snapshot'])
+        return
+    if mode == "真实账号案例":
+        real_case_page(cases)
         return
     if mode == "公开账号":
         public_account_page()

@@ -218,6 +218,8 @@ def public_workbook(snapshot, analysis):
         ("账号", snapshot.get("name")), ("来源", snapshot.get("url")), ("账号简介", snapshot.get("bio", "")),
         ("主页指标原文", snapshot.get("profile_text", "")), ("详情成功篇数", snapshot.get("successful_details", 0)),
         ("样本范围", snapshot.get('scope', '仅本次读取到的笔记，不代表账号全部历史。')),
+        *([('案例领域', snapshot.get('category', '')), ('案例选择依据', snapshot.get('selection_basis', '')),
+           ('案例采集方式', snapshot.get('collection_method', ''))] if snapshot.get('is_case_study') else []),
         ("支柱互动率口径", "支柱藏赞比、评赞比为逐篇有效比值的平均值；点赞为0或数据缺失时不参与，各列提供有效篇数。")])
     v2 = 'profile' in analysis
     five = report.sheet("五模块分析结果" if v2 else "五维分析结果")
