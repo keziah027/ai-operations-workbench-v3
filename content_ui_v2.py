@@ -9,7 +9,8 @@ from account_profile import identify_account, IDENTITIES, DOMAINS, GOALS, INSUFF
 from account_diagnosis import diagnose
 from note_schema import normalize_notes,THEME_FIELDS,COUNT_FIELDS
 from performance import sample_audit, backend_tables
-from dynamic_topics import discover_topics, OTHER
+from dynamic_topics import OTHER
+from smart_topics import discover_smart_topics, VERSION
 from topic_ui import render_topic_editor
 from topic_state import review_topics
 from packaging_analysis import packaging_tables
@@ -22,8 +23,8 @@ from ai_report import markdown_appendix
 from content_analysis import COVERS, build_annotations, build_detail, pillar_summary, audience_signals, high_interaction
 
 
-def cached_topics(notes):
-    return session_cache('topics').get('discover', notes, lambda: discover_topics(notes))
+def cached_topics(notes, case_id=None):
+    return session_cache('topics').get(VERSION, [case_id, notes], lambda: discover_smart_topics(notes, case_id))
 
 
 def show_sources(frame, columns):
@@ -41,6 +42,7 @@ def markdown_report(snapshot, analysis):
              '领域：'+ '、'.join(analysis['domains']), '用户确认目标：'+('、'.join(analysis['goals']) or '尚未确认'),
              analysis['profile']['reason'], analysis['position'], analysis['audience'] or INSUFFICIENT,
              *rows(analysis['audience_findings']), '## ② 内容结构',
+             '主题归纳方式：'+analysis.get('topic_method','本地文本归纳'),
              '藏赞比/评赞比为各笔记比值的平均值；点赞为0或所需指标缺失的笔记不参与。',
              *rows(analysis['summary']), *rows(analysis.get('final_topics',pd.DataFrame())), '## ③ 高互动规律',
              f"比较指标：{analysis['metric']}；有效{len(analysis['valid'])}篇，高互动组{len(analysis['top'])}篇。",
@@ -72,12 +74,6 @@ def render_content_analysis(snapshot):
     if snapshot.get('is_demo'):
         from deployment import DEMO_NOTICE
         st.warning(DEMO_NOTICE)
-    if snapshot.get('is_case_study'):
-        st.info(snapshot.get('scope', '真实账号公开信息快照，非实时数据。'))
-        with st.expander('案例来源、内容概述与分析限制'):
-            for warning in snapshot.get('warnings', []):
-                st.write(warning)
-            show_sources(pd.DataFrame(snapshot['notes']), ['标题', '内容概述（整理）', '笔记链接'])
     notes = normalize_notes(snapshot.get('notes', []))
     st.subheader('账号运营分析 · V3')
     from deployment import public_mode
@@ -87,8 +83,9 @@ def render_content_analysis(snapshot):
         return
     key = hashlib.sha256(json.dumps([snapshot.get('url'), snapshot.get('captured_at'), notes], ensure_ascii=False, default=str).encode()).hexdigest()[:16]
     if st.session_state.get('restore_epoch'): key+='-r'+str(st.session_state['restore_epoch'])
-    text_notes=[{field:note.get(field,'') for field in ['标题','正文',*THEME_FIELDS]} for note in notes]
-    topics = cached_topics(text_notes)
+    text_notes=[{field:note.get(field,'') for field in ['标题','正文','内容概述（整理）','笔记链接',*THEME_FIELDS]} for note in notes]
+    with st.spinner('正在归纳内容主题，首次使用语义模型可能需要稍等…'):
+        topics = cached_topics(text_notes, snapshot.get('id') if snapshot.get('is_case_study') else None)
     calculations=session_cache('analysis')
     prepare_context(snapshot,topics,key)
     tabs = st.tabs(['① 账号画像', '② 内容结构', '③ 高互动规律', '④ 内容包装', '⑤ 运营诊断', '⑥ AI运营助手'])
@@ -119,13 +116,13 @@ def render_content_analysis(snapshot):
             st.info('当前可区分的主题不足3类，保留实际归纳结果；补充更多不同选题的标题和正文后再判断。')
         if not topics['topics'].empty:
             with st.expander('查看主题归纳依据及代表笔记'):
-                st.dataframe(topics['topics'], hide_index=True, width='stretch')
+                st.dataframe(topics['topics'].drop(columns=['主题ID'], errors='ignore'), hide_index=True, width='stretch')
         with st.expander('调整主题名称与逐篇分类'):
             annotations, editing = render_topic_editor(notes, topics, key, commerce['enabled'])
         frame = calculations.get('detail-v1',[notes,annotations],lambda:build_detail(notes,annotations))
         final_topics=calculations.get('topic-review-v1',frame[['主题ID','主支柱','序号','标题','正文','分类置信度']],lambda:review_topics(frame))
         with st.expander('复核最终主题与代表笔记'):
-            st.dataframe(final_topics,hide_index=True,width='stretch')
+            st.dataframe(final_topics.drop(columns=['主题ID'], errors='ignore'),hide_index=True,width='stretch')
             for _,topic in final_topics.iterrows():
                 with st.expander(f"{topic['最终主题']} · {topic['篇数']}篇"):
                     group=frame[frame['主题ID'].eq(topic['主题ID'])]
@@ -258,6 +255,7 @@ def render_content_analysis(snapshot):
     analysis = {'profile': profile, **selection, 'commerce_enabled':commerce['enabled'], 'commerce_reason':commerce['reason'], 'position': position, 'audience': audience,
                 'audience_findings': audience_findings,'audience_auto':audience_auto,'audience_all':audience_all, 'metric': metric, 'valid': valid, 'top': top,
                 'comparisons': comparisons, 'summary': summary, 'detail': frame, 'annotations': annotations,
+                'topic_method': topics['method'], 'topic_origin': topics.get('origin', '自动初判'),
                 'diagnosis': diagnosis, 'diagnosis_note': diagnosis_note, 'topics': topics['topics'], 'commerce': commerce['evidence'].to_dict('records'),
                 'sample_audit':audit, 'backend_tables':tables, 'final_topics':final_topics, 'editing':editing,'packaging_tables':packaging}
     export_snapshot = dict(snapshot, bio=bio, notes=notes)
@@ -278,4 +276,13 @@ def render_content_analysis(snapshot):
     st.download_button('下载分析报告（Markdown）', markdown_data, file_name='账号运营分析V3.md', mime='text/markdown', key=f'v2-report-{key}')
     with st.expander('计算与报告缓存状态'):
         st.dataframe(pd.DataFrame([dict(缓存='分析',**calculations.info()),dict(缓存='导出',**session_cache('exports').info())]),hide_index=True,width='stretch')
+    if snapshot.get('is_case_study'):
+        with st.expander('数据来源与说明', expanded=False):
+            st.write(snapshot.get('scope', '真实账号公开快照，非实时数据。'))
+            st.caption('采集时间：'+snapshot.get('captured_at', '未记录'))
+            for field in ['selection_basis', 'collection_method', 'stop_reason', 'profile_text']:
+                if snapshot.get(field): st.write(snapshot[field])
+            for warning in dict.fromkeys(snapshot.get('warnings', [])):
+                if warning not in snapshot.get('scope', ''): st.write(warning)
+            show_sources(pd.DataFrame(snapshot['notes']), ['标题', '内容概述（整理）', '笔记链接'])
     return analysis

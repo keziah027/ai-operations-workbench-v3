@@ -117,12 +117,15 @@ def render_public_snapshot(snapshot):
         notes[metric] = pd.to_numeric(notes[metric], errors="coerce")
     st.write(f"**{snapshot['name']}**")
     st.link_button("查看来源主页", snapshot["url"])
-    st.caption(f"读取时间：{snapshot['captured_at']}；设定上限 {snapshot.get('requested_limit', len(notes))} 篇，本次找到 {len(notes)} 篇。")
-    st.info(f"读取结束原因：{snapshot.get('stop_reason', '已完成')}。详情成功读取 {snapshot.get('successful_details', 0)}/{len(notes)} 篇。")
-    for warning in snapshot.get("warnings", []):
-        st.warning(warning)
-    with st.expander("主页账号指标（前台显示原文）"):
-        st.text(snapshot["profile_text"])
+    if snapshot.get('is_case_study'):
+        st.caption(f"真实案例快照 · {snapshot['captured_at'][:10]}采集 · {len(notes)}篇 · 非实时；详细来源见页面底部。")
+    else:
+        st.caption(f"读取时间：{snapshot['captured_at']}；设定上限 {snapshot.get('requested_limit', len(notes))} 篇，本次找到 {len(notes)} 篇。")
+        st.info(f"读取结束原因：{snapshot.get('stop_reason', '已完成')}。详情成功读取 {snapshot.get('successful_details', 0)}/{len(notes)} 篇。")
+        for warning in snapshot.get("warnings", []):
+            st.warning(warning)
+        with st.expander("主页账号指标（前台显示原文）"):
+            st.text(snapshot["profile_text"])
     columns = st.columns(4)
     columns[0].metric("本次读取篇数", len(notes))
     for column, metric in zip(columns[1:], METRICS):
@@ -284,10 +287,8 @@ def real_case_page(cases):
     selected = options[chosen]
     if selected.get('category'):
         st.write('领域：' + selected['category'])
-    if selected.get('selection_basis'):
-        st.caption(selected['selection_basis'])
-    st.write('采集时间：' + selected['captured_at'])
-    st.write('样本范围：' + selected['scope'])
+    historical = ' · 历史作品样本' if '历史' in selected['scope'] else ''
+    st.caption(f"{selected['captured_at'][:10]}采集 · {len(selected['notes'])}篇公开笔记{historical}")
     st.link_button('核对账号来源', selected['url'])
     if st.button('加载真实账号案例', type='primary'):
         st.session_state['active-real-case-id'] = chosen

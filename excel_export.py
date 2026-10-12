@@ -215,6 +215,8 @@ def public_workbook(snapshot, analysis):
     notes = prepared_notes(snapshot.get("notes", []))
     report = Report()
     report_summary(report, snapshot, notes, snapshot.get('source_kind', '小红书公开账号'), [
+        ("主题归纳方式", analysis.get("topic_method", "本地文本归纳")),
+        ("初始分类来源", analysis.get("topic_origin", "自动初判")),
         ("账号", snapshot.get("name")), ("来源", snapshot.get("url")), ("账号简介", snapshot.get("bio", "")),
         ("主页指标原文", snapshot.get("profile_text", "")), ("详情成功篇数", snapshot.get("successful_details", 0)),
         ("样本范围", snapshot.get('scope', '仅本次读取到的笔记，不代表账号全部历史。')),

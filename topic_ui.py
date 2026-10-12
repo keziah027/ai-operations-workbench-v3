@@ -29,6 +29,7 @@ def render_topic_editor(notes,automatic,key,commerce):
             '封面辅助标签':st.column_config.TextColumn(help='用逗号分隔，如文字密集、有人物、对比结构；辅助标签可以重叠'),
             '辅助标签已复核':st.column_config.CheckboxColumn(help='只有主动勾选的笔记进入辅助标签占比比较'),
             '正文结构（人工）':st.column_config.SelectboxColumn(options=BODY_TYPES,required=True)}
+    for field in ['主题ID', '自动主题ID', '_note_id']: config[field]=None
     if not commerce: config['商品/系列（人工确认）']=None
     readonly=['序号','标题','分类依据','分类置信度','主题ID','自动主题ID','自动主支柱','自动分类依据','最终分类来源','_note_id']
     edited=st.data_editor(st.session_state[base],key=editor,hide_index=True,width='stretch',

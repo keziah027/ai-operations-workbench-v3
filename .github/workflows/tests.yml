@@ -16,7 +16,9 @@ jobs:
         run: python -m unittest discover -s tests -v
         env:
           APP_MODE: local
+          TOPIC_ENGINE: rules
       - name: Public demo acceptance suite
         run: python -m unittest discover -s cloud_tests -v
         env:
           APP_MODE: public
+          TOPIC_ENGINE: rules

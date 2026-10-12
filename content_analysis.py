@@ -91,7 +91,7 @@ def build_annotations(notes, topics=None):
                      "商品/系列（人工确认）": "", "承接位置（人工确认）": "",
                      '主题ID':topics.get('assignment_ids',['other']*len(notes))[index],
                      '自动主题ID':topics.get('assignment_ids',['other']*len(notes))[index],
-                     '自动主支柱':pillar,'自动分类依据':reason,'最终分类来源':'自动初判'})
+                     '自动主支柱':pillar,'自动分类依据':reason,'最终分类来源':topics.get('origin','自动初判')})
     return pd.DataFrame(rows)
 
 

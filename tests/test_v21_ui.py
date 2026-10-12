@@ -58,7 +58,7 @@ class UIRegressionTests(unittest.TestCase):
             # Edit a note and then change the commerce gate; manual values survive the editor reconfiguration.
             normal=normalize_notes(notes)
             key=hashlib.sha256(json.dumps([snapshot['url'],snapshot['captured_at'],normal],ensure_ascii=False,default=str).encode()).hexdigest()[:16]
-            labels=discover_topics(normal)['labels']
+            labels=captured['analysis']['topics']['内容支柱'].tolist()
             editor=f'annotations-v3-{key}-0-{int(captured['analysis']['commerce_enabled'])}'
             edits={'edited_rows':{0:{'主支柱':labels[1],'封面观察':'保留人工标注'}},'added_rows':[],'deleted_rows':[]}
             app.session_state[editor]=edits

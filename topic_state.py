@@ -9,7 +9,7 @@ from note_schema import content_text
 
 
 def create_state(notes, automatic, previous=None):
-    definitions=[{'id':identity,'name':name,'origin':'自动归纳'} for identity,name in
+    definitions=[{'id':identity,'name':name,'origin':automatic.get('origin','自动归纳')} for identity,name in
                  zip(automatic.get('topic_ids',[]),automatic['labels'])]
     definitions.append({'id':'other','name':OTHER,'origin':'保留分类'})
     rows=build_annotations(notes,automatic).to_dict('records')

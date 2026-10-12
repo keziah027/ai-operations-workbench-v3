@@ -62,3 +62,12 @@ python -m unittest discover -s cloud_tests -v
 ```
 
 GitHub Actions在Linux与Python 3.12上运行相同检查。测试中的SDK调用使用模拟传输，不产生付费请求。真实公开网址验证与本地测试是不同验收项，不能相互替代。
+
+## 免费语义主题归纳
+
+- `smart_topics.py` 为统一入口。固定案例通过来源链接与文字指纹核对后采用 `reviewed_topics.json` 的逐篇复核标签；改变源文字便不会继续声称已复核。
+- 新材料采用 `Xenova/paraphrase-multilingual-MiniLM-L12-v2` 的量化 ONNX 文件，在 CPU 上计算文本语义向量，再匹配 `topic_catalog.py` 的领域描述。明确关键词用于辅助弱匹配；不确定的笔记保留“其他/待确认”。这不是生成式大模型，也不保证任意领域的分类质量。
+- 首次需要从 Hugging Face 下载约 136 MB 公共模型文件，固定提交版本并校验 SHA-256；缓存到系统临时目录，不进入 Git。仅下载权重，不发送访客文本；推理批量 8 条、CPU 两线程、文本最多 128 tokens。正文过长会截断，因此仍需复核。
+- 模型资源可跨会话复用，访客分析结果仍按会话隔离。下载或推理失败会明确显示文本归纳回退，不调用付费 API。新开会话可重试。无网络环境可设置 `TOPIC_ENGINE=rules`，不会尝试加载语义模型。
+- 自动化回归使用 `TOPIC_ENGINE=rules` 避免联网依赖，并单独测试语义分支和故障回退。真实模型集成测试：`python -m unittest discover -s integration_tests -v`；首次需可访问模型下载站点。
+- 更改代码会继续使用当前地址 https://ai-operations-workbench.streamlit.app/ 。只有在云端主动改名、删除或迁移应用时才需要更换链接。

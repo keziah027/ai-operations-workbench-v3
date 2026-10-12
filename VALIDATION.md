@@ -11,7 +11,7 @@
 
 ## 公网部署（2026-10-12）
 
-地址：https://ai-operations-v3-keziah027.streamlit.app/
+地址：https://ai-operations-workbench.streamlit.app/
 
 已在 Streamlit Community Cloud 部署，实际运行 Python 3.12.15。公开模式无需 Secrets。平台将 pyarrow 25.0.1 自动替换为 24.0.0，以规避其已知兼容性问题。
 
