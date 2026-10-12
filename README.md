@@ -1,5 +1,9 @@
 # AI运营分析台 V3 · 公开演示版
 
+**在线体验：[AI运营分析台 V3](https://ai-operations-v3-keziah027.streamlit.app/)**
+
+托管于 Streamlit Community Cloud。若出现休眠页面，点击 “Yes, get this app back up!” 唤醒后等待加载。
+
 面向运营分析与求职作品集展示的 Streamlit 应用。点击「加载演示数据」即可体验，不需要账号、Excel或API Key。
 
 支持Excel清洗、运营指标与图表、账号画像、动态内容主题、互动规律、人工标注、运营诊断，以及Excel/Markdown报告和JSON项目存档。四类演示账号均为虚构模拟数据，不代表真实运营成果。
