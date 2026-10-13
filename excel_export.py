@@ -123,7 +123,7 @@ class Report:
             cell.number_format = "#,##0.00" if isinstance(value, float) and not value.is_integer() else "#,##0"
         if isinstance(value, (datetime, date)):
             cell.number_format = "yyyy-mm-dd hh:mm" if isinstance(value, datetime) else "yyyy-mm-dd"
-        if header in ["藏赞比", "评赞比", '观看曝光比', '平均藏赞比', '平均评赞比', '平均观看曝光比']:
+        if header in ["藏赞比", "评赞比", '观看曝光比', '平均藏赞比', '平均评赞比', '平均观看曝光比', '爆款率', '占比']:
             cell.number_format = "0.00%"
         cell.alignment = Alignment(vertical="top", wrap_text=True, horizontal="right" if isinstance(value, (int, float)) else "left")
         if not cell.hyperlink:
@@ -283,6 +283,12 @@ def public_workbook(snapshot, analysis):
                 report.table(report.sheet(table_name), table_name, table, filter_rows=True)
     if 'audience_all' in analysis:
         report.table(report.sheet('人群假设复核记录'),'自动证据与人工处理记录（最终采用见五模块）',analysis['audience_all'],filter_rows=True)
+    from idea_tracking import adopted_idea_pool
+    pool = adopted_idea_pool(analysis.get('ai', {}))
+    if not pool.empty:
+        report.table(report.sheet('选题池'), '当前已采纳选题；发布后将选题编号回填到笔记明细的“对应选题”列', pool, filter_rows=True)
+    if not analysis.get('idea_effects', pd.DataFrame()).empty:
+        report.table(report.sheet('选题效果'), '人工关联；账号统一上四分位基准；不足4篇有效数据不计算爆款率', analysis['idea_effects'], filter_rows=True)
     if analysis.get('ai'):
         from ai_report import report_tables
         for title,table in report_tables(analysis['ai']).items():

@@ -10,6 +10,7 @@ import pandas as pd
 import streamlit as st
 from deployment import public_mode, DEMO_NOTICE
 
+from analysis import weekly_pattern, hourly_pattern, performance_tiers, account_comparison
 from analysis import GROUP_COLUMNS, TYPE_COLUMNS, METRICS, daily_trend, group_summary, inspect_workbook, read_excel, summarize
 
 
@@ -272,7 +273,7 @@ def creator_account_page():
 
 def show_table(df):
     display = df.copy()
-    for column in ["藏赞比", "评赞比"]:
+    for column in ["藏赞比", "评赞比", "占比", "爆款率"]:
         if column in display:
             display[column] = display[column].map(lambda value: "—" if pd.isna(value) else f"{value:.2%}")
     st.dataframe(display, hide_index=True, width="stretch")
@@ -333,6 +334,7 @@ def main():
     with st.expander("查看 Excel 格式说明"):
         st.write("识别“标题 / 笔记标题”“发布时间 / 前台日期”“图文/视频 / 内容形式”等常见列名，以及点赞数、收藏数、评论数。")
         st.write("发布时间建议填写为 2026-09-01；精确互动量填写非负整数或1,200。1.2万、1千+等缩略原文保留为近似/下界估计，不参加精确合计、均值和排行；空值也不按0处理。")
+        st.write("执行选题后可添加“对应选题”或“选题编号”列，填入选题池编号；空白和占位文本记为未关联。")
         st.write("每一行都计为一篇笔记；同标题不会自动去重。请勿把合计行放在数据中。")
     from demo_data import SCENARIOS, DemoUpload, demo_workbook
     scenario = st.selectbox('选择演示账号类型', list(SCENARIOS))
@@ -396,6 +398,8 @@ def main():
     st.subheader("互动比值与笔记明细")
     st.caption("藏赞比 = 收藏 ÷ 点赞；评赞比 = 评论 ÷ 点赞。点赞为 0 或所需数据缺失时显示“—”。这些比值不是按曝光量计算的转化率，可能超过 100%。")
     details = ["标题"] + (["原始日期"] if "原始日期" in df else []) + METRICS + ["藏赞比", "评赞比"]
+    if '对应选题' in df:
+        details.append('对应选题')
     if "数据状态" in df:
         details.append("数据状态")
     with st.expander("查看每篇笔记的藏赞比、评赞比和明细", expanded=True):
@@ -457,6 +461,50 @@ def main():
             st.line_chart(trend, x="发布时间", y="平均点赞", color="#EC6A8D")
         if len(trend) == 1:
             st.caption(f"目前只有一个有效发布日期，当日平均点赞为 {trend['平均点赞'].iloc[0]:,.2f}。")
+
+
+    for heading, dimension, builder, color in [
+            ('各星期平均互动', '星期', weekly_pattern, '#EC6A8D'),
+            ('各时段平均互动', '时段', hourly_pattern, '#7C83DB')]:
+        st.write('**'+heading+'**')
+        pattern = builder(df)
+        if pattern.empty:
+            st.info('提供有效发布时间后可查看周几规律。' if dimension == '星期' else '提供包含具体时分的有效发布时间后可查看时段规律。')
+        elif pattern['平均点赞'].notna().any():
+            st.bar_chart(pattern.dropna(subset=['平均点赞']), x=dimension, y='平均点赞', sort=False, color=color)
+        else:
+            st.info('已识别发布时间，但没有可确认的点赞数据，暂时无法绘图。')
+        if not pattern.empty:
+            show_table(pattern)
+        st.caption('按发布日期分组展示当天发布笔记的当前累计平均互动；观察时长不同时不在此直接断言“最近下降”；样本少时仅供参考。')
+        if dimension == '时段':
+            st.caption('仅有日期、没有具体时分的记录不参与时段分析；凌晨和深夜分别统计。')
+
+
+    st.write('**表现分层与内容稳定性**')
+    tiers = performance_tiers(df)
+    middle, rate = st.columns(2)
+    middle.metric('点赞中位数', metric_text(tiers['median'], 2))
+    rate.metric('爆款率', '—' if pd.isna(tiers['viral_rate']) else f"{tiers['viral_rate']:.0%}")
+    if tiers['status'] == '样本不足':
+        st.info('样本不足，暂不做分层；至少需要4篇精确点赞数据。')
+    else:
+        if tiers['status'] == '四分位重合':
+            st.info('上下四分位重合，当前有效笔记统一归为中坚，暂不区分爆款。')
+        show_table(tiers['summary'])
+    st.caption(f"精确点赞有效 {tiers['valid_count']}/{len(df)} 篇；下四分位 {metric_text(tiers['p25'],2)}，上四分位 {metric_text(tiers['p75'],2)}。")
+    st.caption('爆款按本账号有效篇数的上四分位划分，用于衡量内容稳定性，不预示单篇表现。阈值并列会全部纳入，占比可能高于25%；全表有多个账号时，此处为工作表整体基准，各账号基准见横向对比。')
+
+
+    comparison = account_comparison(df)
+    if not comparison.empty:
+        st.subheader('多账号横向对比')
+        show_table(comparison)
+        comparable = comparison.dropna(subset=['平均点赞'])
+        if not comparable.empty:
+            st.bar_chart(comparable, x='账号', y='平均点赞', sort=False, color='#7C83DB')
+        st.caption('各账号分别统计；藏赞比、评赞比为逐篇有效比值的均值，不是合计相除。爆款率采用各账号自己的上四分位基准；样本不足或阈值重合时留空。')
+        st.caption('未填写账号的记录不进入横向对比；不同粉丝规模、发布时间与观察时长会影响结果，不能仅据平均互动判断运营优劣。')
 
     # V2 与原有统计共用清洗后的记录，保留原统计、图表与读取设置。
     account_frame = df

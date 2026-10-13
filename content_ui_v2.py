@@ -66,6 +66,8 @@ def markdown_report(snapshot, analysis):
                   snapshot.get('scope', ''), snapshot.get('collection_method', ''),
                   *snapshot.get('warnings', []), '### 内容概述（阅读后整理，非作者原文）']
         lines += [f"- {note['标题']}：{note.get('内容概述（整理）', '')}" for note in snapshot['notes']]
+    if not analysis.get('idea_effects', pd.DataFrame()).empty:
+        lines += ['## 选题效果（人工关联）', '以同账号全部精确点赞的上四分位为基准；单组选题不足4篇时不计算爆款率。', *rows(analysis['idea_effects'])]
     lines.append(markdown_appendix(analysis.get('ai',{})))
     return '\n\n'.join(lines)
 
@@ -261,6 +263,22 @@ def render_content_analysis(snapshot):
     export_snapshot = dict(snapshot, bio=bio, notes=notes)
     with tabs[5]:
         analysis['ai']=render_ai(export_snapshot,analysis,key)
+    from analysis import idea_effects
+    from idea_tracking import adopted_idea_pool
+    idea_frame = pd.DataFrame(notes)
+    if '账号名称' not in idea_frame:
+        idea_frame['账号名称'] = snapshot['name']
+    analysis['idea_effects'] = idea_effects(idea_frame)
+    pool = adopted_idea_pool(analysis.get('ai', {}))
+    if not pool.empty:
+        with st.expander('已采纳选题池与执行回填', expanded=True):
+            st.dataframe(pool.drop(columns=['采纳选题原文']), hide_index=True, width='stretch')
+            st.caption('导出的 Excel 已包含“选题池”。发布后在笔记明细增加“对应选题”列，填入这里的“选题编号”，下次上传即可复盘。仅使用当前已采纳文字；未采纳草稿不进入选题池。')
+    if not analysis['idea_effects'].empty:
+        st.subheader('选题效果')
+        st.dataframe(analysis['idea_effects'], hide_index=True, width='stretch',
+                     column_config={'爆款率': st.column_config.NumberColumn('爆款率', format='percent')})
+        st.caption('仅统计已人工关联的笔记，未关联不计入选题效果表。爆款以同账号全部精确点赞笔记的上四分位为统一基准；账号无法分层或单组选题不足4篇有效数据时留空。不说明选题与表现的因果。')
     save_controls(snapshot,analysis,key)
     from excel_export import public_workbook, export_filename, MIME
     label = '导出公开账号数据与分析（Excel）' if snapshot.get('source_kind', '公开账号') == '公开账号' else '导出V3数据与分析（Excel）'

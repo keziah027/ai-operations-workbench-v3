@@ -4,7 +4,7 @@ from threading import RLock
 from time import perf_counter
 from state_codec import encoded,fingerprint
 
-EXPORT_VERSION='v3-report-2'
+EXPORT_VERSION='v3-report-priority-20261013'
 
 class BoundedCache:
     def __init__(self,max_entries=12,max_bytes=24*1024*1024):
