@@ -42,7 +42,17 @@ def demo_response(summary, config, question=None):
             values['数据事实'] = NOTICE + (evidence or '数据不足，无法判断。')
             values['行动建议'] = NOTICE + '请使用主题比较、排行榜和数据完整度模块核对问题。'
             values['能力限制'] = NOTICE + '公开模式提供固定规则说明，不理解开放式问题，不调用付费服务。'
-        result[name] = [{'text': values, 'fact_ids': references, 'note_ids': [], 'numbers': [], 'quotes': []}]
+        note_ids = []
+        if name == 'ideas':
+            # 摘要仅提供已发送笔记的部分精确事实；不声称覆盖全账号排行榜。
+            fact_values = {f.get('label', ''): f['value'] for f in facts}
+            eligible = [(n, fact_values.get('笔记'+n['id']+'：点赞')) for n in summary.get('notes', [])]
+            eligible = [(n, value) for n, value in eligible if isinstance(value, (int, float)) and value >= 0]
+            eligible.sort(key=lambda item: item[1], reverse=True)
+            note_ids = [n['id'] for n, _ in eligible[:2]]
+            if note_ids:
+                values['测试理由与复用方式'] = NOTICE + '参考本次已发送样本中精确点赞较高的笔记，人工核对标题表达与切入角度；未读取全文时不推断正文结构，也不代表全账号排行。'
+        result[name] = [{'text': values, 'fact_ids': references, 'note_ids': note_ids, 'numbers': [], 'quotes': []}]
     validate_response(result, summary, question is not None)
     return {'result': result, 'summary': summary, 'version': request_version(summary, config),
             'model': '规则演示（非大模型）', 'returned_model': 'offline-rule-demo',

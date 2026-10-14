@@ -2,6 +2,7 @@
 from datetime import datetime
 import re
 from urllib.parse import urlsplit
+from profile_selectors import NOTE_ITEM, CARD_FIELDS, PROFILE_INTERACTIONS, PROFILE_DESC
 
 ALLOWED_HOSTS = {"www.xiaohongshu.com", "xiaohongshu.com", "xhslink.cn", "www.xhslink.cn", "xhslink.com", "www.xhslink.com"}
 
@@ -64,6 +65,14 @@ def parse_visible_cards(cards):
     return result
 
 
+def detect_layout_version(page):
+    """须在访问限制检查之后调用；列表缺失不等于有效的空账号。"""
+    count = page.locator(NOTE_ITEM).count()
+    if count == 0:
+        raise AccountReadError(f"未识别到笔记列表（{NOTE_ITEM} 数量为 0），页面结构可能已变化。请反馈以便更新适配。未生成统计。")
+    return count
+
+
 def read_profile_page(page, text, limit=30):
     """在给定页面中读取；调用方负责浏览器生命周期与登录状态。"""
     from playwright.sync_api import TimeoutError as BrowserTimeout
@@ -91,27 +100,30 @@ def read_profile_page(page, text, limit=30):
         if parts.hostname not in {"www.xiaohongshu.com", "xiaohongshu.com"} or not re.fullmatch(r"/user/profile/[a-fA-F0-9]{24}/?", parts.path):
             raise AccountReadError("分享链接没有打开账号主页，可能需要登录或链接失效。请在小红书窗口中确认后复制完整主页链接。")
         try:
-            page.locator("section.note-item").first.wait_for(state="visible", timeout=10000)
+            page.locator(NOTE_ITEM).first.wait_for(state="visible", timeout=10000)
         except BrowserTimeout as exc:
             check_restrictions()
-            raise AccountReadError("未找到可见笔记：账号可能无公开笔记、需要登录，或页面结构已变化。没有把这种情况当作 0 篇。") from exc
+            detect_layout_version(page)
+            raise AccountReadError("笔记列表未能显示，页面可能尚未加载完成或结构已变化，请反馈以便更新适配。未生成统计。") from exc
         check_restrictions()
-        cards = page.locator("section.note-item").evaluate_all("""(elements, limit) => elements.slice(0, limit).map(el => {
-            const title = el.querySelector('.title');
-            const likes = el.querySelector('.like-wrapper .count');
-            const link = el.querySelector('a.cover[href]') || el.querySelector('a[href]');
-            const image = el.querySelector('a.cover img');
+        detect_layout_version(page)
+        cards = page.locator(NOTE_ITEM).evaluate_all("""(elements, config) => elements.slice(0, config.limit).map(el => {
+            const fields = config.fields;
+            const title = el.querySelector(fields.title);
+            const likes = el.querySelector(fields.likes);
+            const link = el.querySelector(fields.link) || el.querySelector(fields.fallback_link);
+            const image = el.querySelector(fields.image);
             return { title: title?.textContent?.trim() || '', likes: likes?.textContent?.trim() || '', href: link?.href || '', cover: image?.currentSrc || image?.src || '' };
-        })""", limit)
+        })""", {'limit': limit, 'fields': CARD_FIELDS})
         check_restrictions()
         notes = parse_visible_cards(cards)
         if not notes:
-            raise AccountReadError("页面没有返回可识别的笔记标题，未生成统计。可能需要登录或更新页面适配。")
-        interaction = page.locator(".user-interactions")
+            raise AccountReadError("页面可见笔记卡片，但未能识别其标题或点赞结构，小红书页面可能已改版，请在 issue 反馈，并附上脱敏后的页面结构。未生成统计。")
+        interaction = page.locator(PROFILE_INTERACTIONS)
         return {"name": page.title().removesuffix(" - 小红书").strip(), "url": page.url,
                 "captured_at": datetime.now().astimezone().isoformat(timespec="seconds"),
                 "profile_text": interaction.first.inner_text() if interaction.count() else "主页账号指标未能识别",
-                "bio": page.locator('.user-desc').first.inner_text() if page.locator('.user-desc').count() else "",
+                "bio": page.locator(PROFILE_DESC).first.inner_text() if page.locator(PROFILE_DESC).count() else "",
                 "notes": notes}
     except AccountReadError:
         raise

@@ -84,3 +84,28 @@ def backend_tables(frame):
             '后台支柱表现':performance_groups(frame,'主支柱'),
             '内容形式表现':performance_groups(frame,'内容形式'),
             '发布时间表现':performance_groups(frame.assign(发布日期=publication_dates(frame['发布时间']).dt.date),'发布日期')}
+
+
+def backend_trends(frame):
+    """仅用于界面绘图；不更改传入数据或 AI 摘要。完播率采用百分数点。"""
+    import re
+    data = frame.copy()
+    for metric in ['曝光', '观看', '涨粉']:
+        values = pd.to_numeric(data.get(metric, pd.Series(float('nan'), index=data.index)), errors='coerce')
+        if metric+'精度' in data:
+            values = values.where(data[metric+'精度'].eq('精确'))
+        data[metric] = values.where(values.ge(0))
+    data = add_ratios(data)
+    data['涨粉效率'] = data['每千次观看涨粉']
+    data['发布时间'] = publication_dates(data.get('发布时间', pd.Series(pd.NaT, index=data.index)))
+    def percent(value):
+        if value is None or pd.isna(value): return float('nan')
+        text = str(value).strip()
+        if not re.fullmatch(r'(?:\d+(?:\.\d+)?|\.\d+)\s*[%％]?', text): return float('nan')
+        number = float(text.rstrip('%％').strip())
+        return number if 0 <= number <= 100 else float('nan')
+    data['视频完播率'] = data.get('视频完播率', pd.Series(float('nan'), index=data.index)).map(percent)
+    if '视频完播率精度' in data:
+        data['视频完播率'] = data['视频完播率'].where(data['视频完播率精度'].eq('精确'))
+    return {metric: data[['发布时间', metric]].dropna().sort_values('发布时间', kind='stable')
+            for metric in ['观看曝光比', '涨粉效率', '视频完播率']}

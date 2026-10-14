@@ -260,15 +260,56 @@ def creator_account_page():
     for tab, metric in zip(st.tabs([f"{metric} TOP10" for metric in METRICS]), METRICS):
         with tab:
             show_table(notes.dropna(subset=[metric]).sort_values(metric, ascending=False, kind="stable").head(10)[["标题", "发布时间", metric]])
-    chart = notes.assign(发布时间=pd.to_datetime(notes["发布时间"], errors="coerce")).dropna(subset=["发布时间", "点赞"])
+    from note_schema import publication_dates
+    chart = notes.assign(发布时间=publication_dates(notes["发布时间"])).dropna(subset=["发布时间", "点赞"])
     if not chart.empty:
         st.write("**按笔记首发日期比较平均点赞**")
         chart["发布日期"] = chart["发布时间"].dt.date
         st.line_chart(chart.groupby("发布日期", as_index=False)["点赞"].mean(), x="发布日期", y="点赞")
     from content_ui import render_content_analysis
+    render_period_comparison(dict(result, name=overview['name'], account_id=overview['account_id'], notes=notes.to_dict('records')))
+    render_backend_trends(notes)
     render_content_analysis(dict(result, name=overview['name'], url=result.get('source', ''), bio='',
         source_kind='自有账号后台', creator_data=result,
         scope=f"后台当前筛选：{filters}；本次{len(result['notes'])}篇，符合筛选{result.get('platform_total')}篇。账号期间总览与笔记汇总不同口径。"))
+
+
+
+
+def render_backend_trends(frame):
+    from performance import backend_trends
+    trends = backend_trends(frame)
+    specs = [
+        ('观看曝光比', '观看曝光比趋势', '#7C83DB', '本批后台数据缺少有效的发布时间或曝光/观看，暂无法展示。',
+         '观看曝光比=观看÷曝光；分母为0或缺失时留空，仅采用同篇且统计口径一致的精确值，比值可以超过100%。'),
+        ('涨粉效率', '涨粉效率（每千次观看涨粉）', '#EC6A8D', '本批后台数据缺少有效的发布时间或观看/涨粉，暂无法展示。',
+         '涨粉效率=涨粉÷观看×1000，表示每千次观看对应的涨粉数；分母为0或缺失时留空，仅采用同篇且统计口径一致的精确值。'),
+        ('视频完播率', '完播率趋势', '#7C83DB', '本批数据缺少有效的发布时间或逐篇完播率，暂无法展示；不使用账号总览代替逐篇数据。',
+         '完播率为后台原始百分比，缺失不计入；图中数值单位为%，例如42%显示为42，纯数字按百分数点解释。'),
+    ]
+    for metric, heading, color, missing, caption in specs:
+        st.write('**'+heading+'**')
+        if trends[metric].empty:
+            st.info(missing)
+        else:
+            st.line_chart(trends[metric], x='发布时间', y=metric, color=color)
+        st.caption(caption)
+    st.caption('按首发时间展示本次快照中每篇笔记的累计表现；编辑日期不参与。发布时间及观察时长不同，不能据此判断因果。')
+
+
+
+
+def render_period_comparison(snapshot):
+    from period_comparison import period_comparison, period_display
+    previous = st.session_state.get('period_baseline')
+    table = period_comparison(previous, snapshot)
+    if table.empty:
+        return
+    st.subheader('多期环比（本期 vs 上期）')
+    show_table(period_display(table))
+    st.caption(f"上期快照：{previous.get('captured_at') or '未记录时间'}，{len(previous['notes'])}篇；本期快照：{snapshot.get('captured_at') or '未记录时间'}，{len(snapshot['notes'])}篇。")
+    st.caption('对比基于两次导入/读取的快照，口径与单期统计一致；账号不同或缺少上期时不展示。变化为本期减上期，爆款率变化采用百分点。')
+    st.caption('各期使用自己的上四分位，爆款率是相对分层占比，通常接近25%，不能单凭其变化判断绝对表现提升；样本不足或阈值重合时留空。两期样本、观察时长可能不同，这不是期间新增互动或因果判断。')
 
 
 def show_table(df):
@@ -430,6 +471,9 @@ def main():
         st.info("添加“内容主题”或“产品系列”列后，即可查看分组分析。也支持“产品系列/内容主题”列名。")
 
     st.subheader("基础图表")
+    if any(df[column].notna().any() for column in ['曝光', '观看', '涨粉'] if column in df) or '视频完播率' in df:
+        render_backend_trends(df)
+
     st.write("**各笔记点赞排行**")
     ranking = df.dropna(subset=["点赞"]).sort_values("点赞", ascending=False, kind="stable").copy()
     ranking["笔记"] = [f"{position}. {title}" for position, title in enumerate(ranking["标题"], 1)]
@@ -526,11 +570,13 @@ def main():
     if time_key not in st.session_state:
         st.session_state[time_key] = datetime.now().astimezone().isoformat(timespec='seconds')
     from content_ui import render_content_analysis
-    render_content_analysis({'name': account_name, 'url': f'Excel：{uploaded.name} / {sheet}', 'bio': bio,
+    current_snapshot = {'name': account_name, 'url': f'Excel：{uploaded.name} / {sheet}', 'bio': bio,
         'captured_at': st.session_state[time_key], 'notes': account_frame.to_dict('records'),
         'source_kind': '模拟数据演示（非真实运营数据）' if is_demo else 'Excel上传', 'is_demo': is_demo,
         'scope': f'{uploaded.name} / {sheet} / 第{header_row}行表头；账号：{account_name}；共{len(account_frame)}篇。',
-        'stop_reason': '已读取所选Excel明细', 'requested_limit': len(account_frame)})
+        'stop_reason': '已读取所选Excel明细', 'requested_limit': len(account_frame)}
+    render_period_comparison(current_snapshot)
+    render_content_analysis(current_snapshot)
 
 
 if __name__ == "__main__":

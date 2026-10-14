@@ -1,5 +1,6 @@
 """本地项目操作；默认不写盘，保存按钮明确提交当前人工状态。"""
 from copy import deepcopy
+from period_comparison import remember_period
 import pandas as pd
 import streamlit as st
 from deployment import public_mode
@@ -22,6 +23,7 @@ def project_picker():
                 from cloud_projects import import_project
                 try:
                     project = import_project(archive.getvalue())
+                    remember_period(st.session_state, project)
                     st.session_state.update(active_project=project, show_saved_project=True, project_dirty=False,
                                             restore_epoch=st.session_state.get('restore_epoch', 0) + 1)
                     st.rerun()
@@ -38,10 +40,12 @@ def project_picker():
         if st.button('打开项目',disabled=not chosen or not allowed):
             try:
                 project=load_project(chosen,STORE_ROOT)
+                remember_period(st.session_state, project)
                 st.session_state.update(active_project=project,show_saved_project=True,project_dirty=False,
                                         restore_epoch=st.session_state.get('restore_epoch',0)+1)
                 st.rerun()
             except ProjectError as exc: st.error(str(exc))
+        st.caption('多期环比：先打开已保存的同账号项目，再返回入口上传新一期 Excel 或读取后台。Excel 请填写账号名称；对比仅在本次会话保留。')
         if st.session_state.get('active_project'):
             if st.button('返回数据入口，读取或上传新数据'):
                 st.session_state['show_saved_project']=False

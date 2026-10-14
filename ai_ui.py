@@ -15,6 +15,16 @@ from deployment import public_mode
 def workspace_key(snapshot): return 'ai-workspace-'+fingerprint(account_identity(snapshot))[:20]
 
 
+def render_idea_references(result, summary):
+    """只显示本份已校验草稿的原始引用；编辑后的建议仍需人工复核。"""
+    notes = {note['id']: note.get('title', '') for note in summary.get('notes', [])}
+    for index, idea in enumerate(result.get('ideas', []), 1):
+        ids = list(dict.fromkeys(idea.get('note_ids', [])))
+        references = [f"{notes[identity]}（{identity}）" for identity in ids if identity in notes]
+        if references:
+            st.text(f"选题 {index} · 参考笔记："+'；'.join(references))
+
+
 def render_ai(snapshot, analysis, key):
     st.write('**AI运营助手 · 草稿需核对后采纳**')
     demo = public_mode()
@@ -101,6 +111,10 @@ def render_ai(snapshot, analysis, key):
                 for section in record['result']:
                     edited[section]=st.text_area(SECTIONS[section][0],value=workspace['edited'].get(section,''),height=220,max_chars=16000,
                                                  key=f'ai-text-{key}-{workspace["editor_epoch"]}-{section}')
+                    if section == 'ideas':
+                        render_idea_references(record['result'], record['summary'])
+                        if any(card.get('note_ids') for card in record['result'].get('ideas', [])):
+                            st.caption('参考笔记对应本份AI原始草稿，编号顺序与原稿一致；修改或重排选题后请重新核对引用。')
                 save_draft=st.form_submit_button('保存草稿修改（不采纳）')
                 adopt=st.form_submit_button('保存编辑并采纳')
             if save_draft or adopt:
