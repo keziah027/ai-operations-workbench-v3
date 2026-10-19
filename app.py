@@ -127,28 +127,39 @@ def render_public_snapshot(snapshot):
             st.warning(warning)
         with st.expander("主页账号指标（前台显示原文）"):
             st.text(snapshot["profile_text"])
-    columns = st.columns(4)
-    columns[0].metric("本次读取篇数", len(notes))
-    for column, metric in zip(columns[1:], METRICS):
-        column.metric(f"可确认{metric}合计", metric_text(notes[metric].sum(min_count=1)))
-    for column, metric in zip(st.columns(3), METRICS):
-        column.metric(f"平均{metric}（可确认）", metric_text(notes[metric].mean(), 2))
-    st.caption("数据完整度：" + "；".join(f"{metric} {notes[metric].count()}/{len(notes)} 篇" for metric in METRICS)
-               + "。平均值只使用该项已确认的数据，不推算全账号总量。")
-    notes = add_ratios(notes)
-    for ratio in ['藏赞比','评赞比']:
-        notes[ratio]=notes[ratio].map(lambda value: '—' if pd.isna(value) else f'{value:.2%}')
-    links = {"笔记链接": st.column_config.LinkColumn("笔记链接", display_text="打开笔记")}
-    st.dataframe(notes.drop(columns=["正文", "封面链接", "可见商品入口"], errors="ignore"), hide_index=True, width="stretch", column_config=links)
-    for tab, metric in zip(st.tabs([f"{metric} TOP10" for metric in METRICS]), METRICS):
-        with tab:
-            ranked = notes.dropna(subset=[metric]).sort_values(metric, ascending=False, kind="stable").head(10)
-            if ranked.empty:
-                st.info(f"本次没有可确认的{metric}数据，暂时无法排行。")
-            else:
-                st.dataframe(ranked[["标题", metric, "笔记链接"]], hide_index=True, width="stretch", column_config=links)
+    from glass_ui import render_overview, anchor
+    from metric_display import display_table, display_ranking, has_abbreviations, NOTICE as DISPLAY_NOTICE
+    dashboard = st.container()
+    with st.expander('账号原始数据与完整排行'):
+        anchor('detail-analysis')
+        columns = st.columns(4)
+        columns[0].metric("本次读取篇数", len(notes))
+        for column, metric in zip(columns[1:], METRICS):
+            column.metric(f"可确认{metric}合计", metric_text(notes[metric].sum(min_count=1)))
+        for column, metric in zip(st.columns(3), METRICS):
+            column.metric(f"平均{metric}（可确认）", metric_text(notes[metric].mean(), 2))
+        st.caption("数据完整度：" + "；".join(f"{metric} {notes[metric].count()}/{len(notes)} 篇" for metric in METRICS)
+                   + "。平均值只使用该项已确认的数据，不推算全账号总量。")
+        notes = add_ratios(notes)
+        for ratio in ['藏赞比','评赞比']:
+            notes[ratio]=notes[ratio].map(lambda value: '—' if pd.isna(value) else f'{value:.2%}')
+        links = {"笔记链接": st.column_config.LinkColumn("笔记链接", display_text="打开笔记")}
+        st.dataframe(display_table(notes.drop(columns=["正文", "封面链接", "可见商品入口"], errors="ignore")), hide_index=True, width="stretch", column_config=links)
+        for tab, metric in zip(st.tabs([f"{metric} TOP10" for metric in METRICS]), METRICS):
+            with tab:
+                ranked = display_ranking(notes, metric, 10)
+                if ranked.empty:
+                    st.info(f"本次没有可确认的{metric}数据，暂时无法排行。")
+                else:
+                    if has_abbreviations(notes, metric):
+                        st.write(DISPLAY_NOTICE)
+                    st.dataframe(display_table(ranked)[["标题", metric, "笔记链接"]], hide_index=True, width="stretch", column_config=links)
     from content_ui import render_content_analysis
-    render_content_analysis(snapshot)
+    with st.expander('内容分析与报告'):
+        anchor('deep-analysis')
+        render_content_analysis(snapshot)
+    with dashboard:
+        render_overview(notes, snapshot)
 
 
 @st.fragment(run_every="1s")
@@ -245,33 +256,40 @@ def creator_account_page():
     for metric in METRICS + ["曝光", "观看"]:
         if metric in notes:
             notes[metric] = pd.to_numeric(notes[metric], errors="coerce")
-    columns = st.columns(4)
-    columns[0].metric("已读取后台笔记", len(notes))
-    for column, metric in zip(columns[1:], METRICS):
-        column.metric(f"已确认{metric}合计", metric_text(notes[metric].sum(min_count=1)))
-    for column, metric in zip(st.columns(3), METRICS):
-        column.metric(f"平均{metric}", metric_text(notes[metric].mean(), 2))
-    st.caption("互动数据完整度：" + "；".join(f"{metric} {notes[metric].count()}/{len(notes)} 篇" for metric in METRICS))
-    notes = add_ratios(notes)
-    main_columns = [column for column in notes if not column.startswith("后台")]
-    show_table(notes[main_columns])
-    with st.expander("查看后台各项数字原文"):
-        show_table(notes)
-    for tab, metric in zip(st.tabs([f"{metric} TOP10" for metric in METRICS]), METRICS):
-        with tab:
-            show_table(notes.dropna(subset=[metric]).sort_values(metric, ascending=False, kind="stable").head(10)[["标题", "发布时间", metric]])
-    from note_schema import publication_dates
-    chart = notes.assign(发布时间=publication_dates(notes["发布时间"])).dropna(subset=["发布时间", "点赞"])
-    if not chart.empty:
-        st.write("**按笔记首发日期比较平均点赞**")
-        chart["发布日期"] = chart["发布时间"].dt.date
-        st.line_chart(chart.groupby("发布日期", as_index=False)["点赞"].mean(), x="发布日期", y="点赞")
+    from glass_ui import render_overview, anchor
+    dashboard = st.container()
+    with st.expander('后台笔记明细与完整排行'):
+        anchor('detail-analysis')
+        columns = st.columns(4)
+        columns[0].metric("已读取后台笔记", len(notes))
+        for column, metric in zip(columns[1:], METRICS):
+            column.metric(f"已确认{metric}合计", metric_text(notes[metric].sum(min_count=1)))
+        for column, metric in zip(st.columns(3), METRICS):
+            column.metric(f"平均{metric}", metric_text(notes[metric].mean(), 2))
+        st.caption("互动数据完整度：" + "；".join(f"{metric} {notes[metric].count()}/{len(notes)} 篇" for metric in METRICS))
+        notes = add_ratios(notes)
+        main_columns = [column for column in notes if not column.startswith("后台")]
+        show_table(notes[main_columns])
+        with st.expander("查看后台各项数字原文"):
+            show_table(notes)
+        for tab, metric in zip(st.tabs([f"{metric} TOP10" for metric in METRICS]), METRICS):
+            with tab:
+                show_table(notes.dropna(subset=[metric]).sort_values(metric, ascending=False, kind="stable").head(10)[["标题", "发布时间", metric]])
+        from note_schema import publication_dates
+        chart = notes.assign(发布时间=publication_dates(notes["发布时间"])).dropna(subset=["发布时间", "点赞"])
+        if not chart.empty:
+            st.write("**按笔记首发日期比较平均点赞**")
+            chart["发布日期"] = chart["发布时间"].dt.date
+            st.line_chart(chart.groupby("发布日期", as_index=False)["点赞"].mean(), x="发布日期", y="点赞")
     from content_ui import render_content_analysis
     render_period_comparison(dict(result, name=overview['name'], account_id=overview['account_id'], notes=notes.to_dict('records')))
     render_backend_trends(notes)
-    render_content_analysis(dict(result, name=overview['name'], url=result.get('source', ''), bio='',
+    analysis_snapshot = dict(result, name=overview['name'], url=result.get('source', ''), bio='',
         source_kind='自有账号后台', creator_data=result,
-        scope=f"后台当前筛选：{filters}；本次{len(result['notes'])}篇，符合筛选{result.get('platform_total')}篇。账号期间总览与笔记汇总不同口径。"))
+        scope=f"后台当前筛选：{filters}；本次{len(result['notes'])}篇，符合筛选{result.get('platform_total')}篇。账号期间总览与笔记汇总不同口径。")
+    render_content_analysis(analysis_snapshot)
+    with dashboard:
+        render_overview(notes, analysis_snapshot)
 
 
 
@@ -280,11 +298,11 @@ def render_backend_trends(frame):
     from performance import backend_trends
     trends = backend_trends(frame)
     specs = [
-        ('观看曝光比', '观看曝光比趋势', '#7C83DB', '本批后台数据缺少有效的发布时间或曝光/观看，暂无法展示。',
+        ('观看曝光比', '观看曝光比趋势', '#1B4D3E', '本批后台数据缺少有效的发布时间或曝光/观看，暂无法展示。',
          '观看曝光比=观看÷曝光；分母为0或缺失时留空，仅采用同篇且统计口径一致的精确值，比值可以超过100%。'),
-        ('涨粉效率', '涨粉效率（每千次观看涨粉）', '#EC6A8D', '本批后台数据缺少有效的发布时间或观看/涨粉，暂无法展示。',
+        ('涨粉效率', '涨粉效率（每千次观看涨粉）', '#B84A32', '本批后台数据缺少有效的发布时间或观看/涨粉，暂无法展示。',
          '涨粉效率=涨粉÷观看×1000，表示每千次观看对应的涨粉数；分母为0或缺失时留空，仅采用同篇且统计口径一致的精确值。'),
-        ('视频完播率', '完播率趋势', '#7C83DB', '本批数据缺少有效的发布时间或逐篇完播率，暂无法展示；不使用账号总览代替逐篇数据。',
+        ('视频完播率', '完播率趋势', '#1B4D3E', '本批数据缺少有效的发布时间或逐篇完播率，暂无法展示；不使用账号总览代替逐篇数据。',
          '完播率为后台原始百分比，缺失不计入；图中数值单位为%，例如42%显示为42，纯数字按百分数点解释。'),
     ]
     for metric, heading, color, missing, caption in specs:
@@ -323,9 +341,13 @@ def show_table(df):
 def real_case_page(cases):
     from real_cases import case_snapshot, NOTICE
     st.subheader('真实账号案例')
+    if not cases:
+        st.info('暂无可用的真实案例快照，请补充已核验的案例文件后再使用。')
+        return
     st.caption('使用已采集的真实公开信息体验分析，无需登录。这里不会实时访问账号。')
     options = {case['id']: case for case in cases}
-    chosen = st.selectbox('选择真实案例', list(options), format_func=lambda item: options[item]['name'])
+    chosen = st.selectbox('选择真实案例', list(options), format_func=lambda item: options[item]['name'],
+                          key='source-case-choice', persist_state='session')
     selected = options[chosen]
     if selected.get('category'):
         st.write('领域：' + selected['category'])
@@ -343,23 +365,38 @@ def real_case_page(cases):
 
 
 def main():
-    st.set_page_config(page_title="AI运营工作台", page_icon="🌿", layout="wide")
+    st.set_page_config(page_title="AI运营分析台", page_icon="✦", layout="wide", initial_sidebar_state="auto")
     st.html("<style>" + Path(__file__).with_name("theme.css").read_text(encoding="utf-8") + "</style>")
-    st.title("AI运营工作台")
-    st.caption('AI运营分析台 V3 · 作品集公开演示' if public_mode() else '分析小红书历史内容与公开主页数据 · 本地运行')
-    if public_mode():
-        st.info('无需注册：选择“真实账号案例”分析真实公开快照，或点击“加载演示数据”体验模拟账号。AI助手采用规则演示，不调用付费API。')
-        st.caption('上传文件仅用于当前访客会话的分析；不会保存到共享项目目录。请勿上传个人隐私或商业机密，离开前可下载报告与项目存档。')
-    from project_ui import project_picker
-    project_picker()
+    from cover_ui import render_cover
+    from source_picker import retain_upload
+    st.session_state.setdefault('cover-open', not any(st.session_state.get(key)
+        for key in ('excel-upload', 'demo_scenario', 'public_snapshot', 'creator_snapshot', 'active_project')))
+    if st.session_state['cover-open']:
+        st.html('<style>' + Path(__file__).with_name('cover.css').read_text(encoding='utf-8') + '</style>')
+        render_cover()
+        retain_upload()
+        return
+    from glass_ui import render_hero, render_sidebar, render_empty, render_overview, render_guide, anchor
     from real_cases import list_cases
     cases = list_cases()
-    sources = ["Excel 文件", "公开账号", "我的账号后台"]
-    if cases:
-        sources.insert(1, "真实账号案例")
-    mode = st.radio("数据来源", sources, horizontal=True, width="stretch")
+    from source_picker import SOURCES, render_source_picker, retain_upload
+    st.session_state.setdefault('source-picker-open', not any(st.session_state.get(key)
+        for key in ('excel-upload', 'demo_scenario', 'public_snapshot', 'creator_snapshot', 'active_project')))
+    mode = render_sidebar(list(SOURCES))
+    if st.session_state['source-picker-open'] and not st.session_state.get('show_saved_project'):
+        render_source_picker()
+        retain_upload()
+        return
+    if mode != 'Excel 文件' or st.session_state.get('show_saved_project'):
+        retain_upload()
+    render_hero()
+    if public_mode():
+        with st.sidebar.expander('演示模式与数据说明'):
+            st.info('无需注册：选择“真实账号案例”分析真实公开快照，或点击“加载演示数据”体验模拟账号。AI助手采用规则演示，不调用付费API。')
+            st.caption('上传文件仅用于当前访客会话的分析；不会保存到共享项目目录。请勿上传个人隐私或商业机密，离开前可下载报告与项目存档。')
     if st.session_state.get('show_saved_project') and st.session_state.get('active_project'):
         from content_ui import render_content_analysis
+        anchor('deep-analysis')
         render_content_analysis(st.session_state['active_project']['snapshot'])
         return
     if mode == "真实账号案例":
@@ -371,30 +408,39 @@ def main():
     if mode == "我的账号后台":
         creator_account_page()
         return
-    st.info('支持多工作表和带标题行的 Excel，自动寻找笔记明细及表头。只有标题也可分析初步选题；补充正文和指标后可支持更多分析，缺失数值不按零处理。')
-    with st.expander("查看 Excel 格式说明"):
-        st.write("识别“标题 / 笔记标题”“发布时间 / 前台日期”“图文/视频 / 内容形式”等常见列名，以及点赞数、收藏数、评论数。")
-        st.write("发布时间建议填写为 2026-09-01；精确互动量填写非负整数或1,200。1.2万、1千+等缩略原文保留为近似/下界估计，不参加精确合计、均值和排行；空值也不按0处理。")
-        st.write("执行选题后可添加“对应选题”或“选题编号”列，填入选题池编号；空白和占位文本记为未关联。")
-        st.write("每一行都计为一篇笔记；同标题不会自动去重。请勿把合计行放在数据中。")
+    anchor('data-upload')
     from demo_data import SCENARIOS, DemoUpload, demo_workbook
-    scenario = st.selectbox('选择演示账号类型', list(SCENARIOS))
-    load, clear = st.columns(2)
-    if load.button('加载演示数据', type='primary', width='stretch'):
-        st.session_state['demo_scenario'] = scenario
-    if clear.button('清除演示数据', width='stretch', disabled='demo_scenario' not in st.session_state):
-        st.session_state.pop('demo_scenario', None)
-    st.download_button('下载模拟示例 Excel', data=demo_workbook(scenario), file_name=f'模拟数据_{scenario}.xlsx',
-                       mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    uploaded = st.file_uploader("上传 .xlsx 文件", type=["xlsx"])
+    has_data = bool(st.session_state.get('excel-upload') or st.session_state.get('demo_scenario'))
+    upload_panel = st.expander('数据导入 · Excel 与演示数据', expanded=st.session_state.pop('open-upload', not has_data))
+    with upload_panel:
+        upload_col, demo_col = st.columns([1.5, 1], gap='large')
+        with upload_col:
+            uploaded = st.file_uploader("上传 .xlsx 文件", type=["xlsx"], key='excel-upload')
+            with st.expander("查看 Excel 格式说明"):
+                st.write("识别“标题 / 笔记标题”“发布时间 / 前台日期”“图文/视频 / 内容形式”等常见列名，以及点赞数、收藏数、评论数。")
+                st.write("发布时间建议填写为 2026-09-01；精确互动量填写非负整数或1,200。1.2万、1千+等缩略原文保留为近似/下界估计，不参加精确合计、均值和排行；空值也不按0处理。")
+                st.write("执行选题后可添加“对应选题”或“选题编号”列，填入选题池编号；空白和占位文本记为未关联。")
+                st.write("每一行都计为一篇笔记；同标题不会自动去重。请勿把合计行放在数据中。")
+        with demo_col:
+            scenario = st.selectbox('选择演示账号类型', list(SCENARIOS))
+            load, clear = st.columns(2)
+            if load.button('加载演示数据', width='stretch'):
+                st.session_state['demo_scenario'] = scenario
+                st.rerun()
+            if clear.button('清除演示数据', width='stretch', disabled='demo_scenario' not in st.session_state):
+                st.session_state.pop('demo_scenario', None)
+                st.rerun()
+            st.download_button('下载模拟示例 Excel', data=demo_workbook(scenario), file_name=f'模拟数据_{scenario}.xlsx',
+                               mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', width='stretch')
     is_demo = uploaded is None and 'demo_scenario' in st.session_state
     if is_demo:
         uploaded = DemoUpload(st.session_state['demo_scenario'])
-        st.warning(DEMO_NOTICE + ' 当前场景：' + st.session_state['demo_scenario'])
+        st.caption('演示数据 · ' + st.session_state['demo_scenario'] + '（非真实账号）')
     elif uploaded is not None and 'demo_scenario' in st.session_state:
         st.caption('当前分析你上传的文件；清除上传后可继续体验演示数据。')
     if uploaded is None:
-        st.caption("上传后会显示数据概览、三个 TOP10、主题分组和基础图表。")
+        render_empty()
+        render_guide()
         return
     try:
         contents = uploaded.getvalue()
@@ -402,13 +448,13 @@ def main():
         file_key = hashlib.sha256(contents).hexdigest()[:12]
         candidates = structure["candidates"]
         default_sheet = candidates[0]["sheet"] if candidates else structure["sheets"][0]
-        with st.expander("读取设置：工作表与表头", expanded=not candidates):
+        with upload_panel, st.expander("读取设置：工作表与表头", expanded=not candidates):
             sheet = st.selectbox("选择笔记明细工作表", structure["sheets"],
-                                 index=structure["sheets"].index(default_sheet), key=f"sheet-{file_key}")
+                                 index=structure["sheets"].index(default_sheet), key=f"sheet-{file_key}", persist_state='session')
             detected = next((item for item in candidates if item["sheet"] == sheet), None)
             header_row = st.number_input("表头在 Excel 的第几行", min_value=1, max_value=500,
                                          value=detected["header_row"] if detected else 1,
-                                         key=f"header-{file_key}-{sheet}")
+                                         key=f"header-{file_key}-{sheet}", persist_state='session')
             st.caption("自动检查每个工作表的前 30 行。汇总页和透视表不作为笔记明细；识别不准确时，可在这里手动选择。")
         df, messages = read_excel(contents, sheet_name=sheet, header_row=int(header_row))
     except ValueError as exc:
@@ -417,138 +463,132 @@ def main():
     except Exception:
         st.error("无法读取这个文件。请确认它是未加密的 .xlsx 文件，并在 Excel 中重新另存为 .xlsx 后上传。")
         return
-    for message in messages:
-        st.warning(message)
-    source = df.attrs["source"]
-    st.caption(f"数据来源：{source['sheet']} · 第 {source['header_row']} 行表头")
-    if source["mappings"]:
-        st.caption("已识别列名：" + "；".join(f"{original} → {mapped}" for original, mapped in source["mappings"].items()))
-    st.success(f"已读取 {len(df)} 篇笔记。")
-    st.subheader("数据概览")
-    summary = summarize(df)
-    for column, label in zip(st.columns(4), ["总发布篇数", "总点赞", "总收藏", "总评论"]):
-        shown_label = label
-        if label != "总发布篇数" and df[label[1:]].isna().any():
-            shown_label = f"已确认{label[1:]}合计"
-        column.metric(shown_label, metric_text(summary[label]))
-    for column, label in zip(st.columns(3), ["平均点赞", "平均收藏", "平均评论"]):
-        column.metric(label, metric_text(summary[label], 2))
-    st.caption("数据完整度：" + "；".join(f"{metric} {df[metric].count()}/{len(df)} 篇" for metric in METRICS)
-               + "。每项平均值 = 该项已确认合计 ÷ 该项已确认篇数；全部缺失时显示“—”。")
+    with upload_panel, st.expander(f"导入质量与字段识别 · 已读取 {len(df)} 篇 · {len(messages)} 项提示"):
+        for message in messages:
+            st.warning(message)
+        source = df.attrs["source"]
+        st.caption(f"数据来源：{source['sheet']} · 第 {source['header_row']} 行表头")
+        if source["mappings"]:
+            st.caption("已识别列名：" + "；".join(f"{original} → {mapped}" for original, mapped in source["mappings"].items()))
+        st.success(f"已读取 {len(df)} 篇笔记。")
+    dashboard = st.container()
+    with st.expander('完整统计与明细 · TOP10 / 内容分类 / 趋势 / 多账号对比'):
+        anchor('detail-analysis')
+        for column, label in zip(st.columns(2), ["平均收藏", "平均评论"]):
+            column.metric(label, metric_text(summarize(df)[label], 2))
+        st.subheader("互动比值与笔记明细")
+        st.caption("藏赞比 = 收藏 ÷ 点赞；评赞比 = 评论 ÷ 点赞。点赞为 0 或所需数据缺失时显示“—”。这些比值不是按曝光量计算的转化率，可能超过 100%。")
+        details = ["标题"] + (["原始日期"] if "原始日期" in df else []) + METRICS + ["藏赞比", "评赞比"]
+        if '对应选题' in df:
+            details.append('对应选题')
+        if "数据状态" in df:
+            details.append("数据状态")
+        with st.expander("查看每篇笔记的藏赞比、评赞比和明细", expanded=True):
+            show_table(df[details])
+        with st.expander('查看数字原文、数值与精度'):
+            columns=['标题']+[metric+suffix for metric in COUNT_FIELDS for suffix in ['原文','数值','精度'] if metric+suffix in df]
+            st.dataframe(df[columns],hide_index=True,width='stretch')
+            st.caption('“数值”可能只是原文的估计或下界；只有标为“精确”的记录用于汇总、比值和排行。')
 
-    st.subheader("互动比值与笔记明细")
-    st.caption("藏赞比 = 收藏 ÷ 点赞；评赞比 = 评论 ÷ 点赞。点赞为 0 或所需数据缺失时显示“—”。这些比值不是按曝光量计算的转化率，可能超过 100%。")
-    details = ["标题"] + (["原始日期"] if "原始日期" in df else []) + METRICS + ["藏赞比", "评赞比"]
-    if '对应选题' in df:
-        details.append('对应选题')
-    if "数据状态" in df:
-        details.append("数据状态")
-    with st.expander("查看每篇笔记的藏赞比、评赞比和明细", expanded=True):
-        show_table(df[details])
-    with st.expander('查看数字原文、数值与精度'):
-        columns=['标题']+[metric+suffix for metric in COUNT_FIELDS for suffix in ['原文','数值','精度'] if metric+suffix in df]
-        st.dataframe(df[columns],hide_index=True,width='stretch')
-        st.caption('“数值”可能只是原文的估计或下界；只有标为“精确”的记录用于汇总、比值和排行。')
+        st.subheader("表现 TOP10")
+        for tab, metric in zip(st.tabs([f"{metric} TOP10" for metric in METRICS]), METRICS):
+            with tab:
+                ranked = df.dropna(subset=[metric]).sort_values(metric, ascending=False, kind="stable").head(10)[details].copy()
+                ranked.insert(0, "排名", range(1, len(ranked) + 1))
+                if ranked.empty:
+                    st.info(f"还没有已确认的{metric}数据，暂时无法排行。")
+                else:
+                    show_table(ranked)
+        st.caption("各榜单只使用该项已确认的笔记；不足 10 篇时显示全部，数值相同时按 Excel 原有顺序排列。")
 
-    st.subheader("表现 TOP10")
-    for tab, metric in zip(st.tabs([f"{metric} TOP10" for metric in METRICS]), METRICS):
-        with tab:
-            ranked = df.dropna(subset=[metric]).sort_values(metric, ascending=False, kind="stable").head(10)[details].copy()
-            ranked.insert(0, "排名", range(1, len(ranked) + 1))
-            if ranked.empty:
-                st.info(f"还没有已确认的{metric}数据，暂时无法排行。")
+        st.subheader("内容主题 / 产品系列分析")
+        groups = [column for column in GROUP_COLUMNS if column in df]
+        if groups:
+            selected = st.selectbox("选择分组字段", groups)
+            st.dataframe(group_summary(df, selected).round(2), hide_index=True, width="stretch")
+            st.caption("内容数量包含该组全部笔记；各项平均值忽略该项未确认数据，全组都缺失的指标留空。")
+        else:
+            st.info("添加“内容主题”或“产品系列”列后，即可查看分组分析。也支持“产品系列/内容主题”列名。")
+
+        st.subheader("基础图表")
+        if any(df[column].notna().any() for column in ['曝光', '观看', '涨粉'] if column in df) or '视频完播率' in df:
+            render_backend_trends(df)
+
+        st.write("**各笔记点赞排行**")
+        ranking = df.dropna(subset=["点赞"]).sort_values("点赞", ascending=False, kind="stable").copy()
+        ranking["笔记"] = [f"{position}. {title}" for position, title in enumerate(ranking["标题"], 1)]
+        if ranking.empty:
+            st.info("没有已确认的点赞数据，暂时无法绘图。")
+        else:
+            st.bar_chart(ranking, x="笔记", y="点赞", sort="-点赞", color="#B84A32")
+
+        st.write("**各内容类型平均点赞**")
+        content_type = next((column for column in TYPE_COLUMNS if column in df), None)
+        if content_type:
+            averages = group_summary(df, content_type).dropna(subset=["平均点赞"])
+            if averages.empty:
+                st.info("没有已确认的点赞数据，暂时无法比较内容类型。")
             else:
-                show_table(ranked)
-    st.caption("各榜单只使用该项已确认的笔记；不足 10 篇时显示全部，数值相同时按 Excel 原有顺序排列。")
-
-    st.subheader("内容主题 / 产品系列分析")
-    groups = [column for column in GROUP_COLUMNS if column in df]
-    if groups:
-        selected = st.selectbox("选择分组字段", groups)
-        st.dataframe(group_summary(df, selected).round(2), hide_index=True, width="stretch")
-        st.caption("内容数量包含该组全部笔记；各项平均值忽略该项未确认数据，全组都缺失的指标留空。")
-    else:
-        st.info("添加“内容主题”或“产品系列”列后，即可查看分组分析。也支持“产品系列/内容主题”列名。")
-
-    st.subheader("基础图表")
-    if any(df[column].notna().any() for column in ['曝光', '观看', '涨粉'] if column in df) or '视频完播率' in df:
-        render_backend_trends(df)
-
-    st.write("**各笔记点赞排行**")
-    ranking = df.dropna(subset=["点赞"]).sort_values("点赞", ascending=False, kind="stable").copy()
-    ranking["笔记"] = [f"{position}. {title}" for position, title in enumerate(ranking["标题"], 1)]
-    if ranking.empty:
-        st.info("没有已确认的点赞数据，暂时无法绘图。")
-    else:
-        st.bar_chart(ranking, x="笔记", y="点赞", sort="-点赞", color="#EC6A8D")
-
-    st.write("**各内容类型平均点赞**")
-    content_type = next((column for column in TYPE_COLUMNS if column in df), None)
-    if content_type:
-        averages = group_summary(df, content_type).dropna(subset=["平均点赞"])
-        if averages.empty:
-            st.info("没有已确认的点赞数据，暂时无法比较内容类型。")
+                st.bar_chart(averages, x=content_type, y="平均点赞", sort="-平均点赞", color="#1B4D3E")
         else:
-            st.bar_chart(averages, x=content_type, y="平均点赞", sort="-平均点赞", color="#7C83DB")
-    else:
-        st.info("添加“图文/视频”或“内容类型”列后，即可查看类型对比。")
+            st.info("添加“图文/视频”或“内容类型”列后，即可查看类型对比。")
 
-    st.write("**发布时间与点赞趋势**")
-    st.caption("按发布日期汇总每篇笔记的当前点赞量，展示当天发布笔记的平均点赞；并非每日新增点赞。")
-    if "发布时间" not in df or df["发布时间"].notna().sum() == 0:
-        st.info("提供有效的“发布时间”后，即可查看时间趋势。")
-    else:
-        trend = daily_trend(df)
-        if trend.empty:
-            st.info("需要同一篇笔记同时有有效发布时间和已确认点赞，才能绘制趋势。")
+        st.write("**发布时间与点赞趋势**")
+        st.caption("按发布日期汇总每篇笔记的当前点赞量，展示当天发布笔记的平均点赞；并非每日新增点赞。")
+        if "发布时间" not in df or df["发布时间"].notna().sum() == 0:
+            st.info("提供有效的“发布时间”后，即可查看时间趋势。")
         else:
-            st.line_chart(trend, x="发布时间", y="平均点赞", color="#EC6A8D")
-        if len(trend) == 1:
-            st.caption(f"目前只有一个有效发布日期，当日平均点赞为 {trend['平均点赞'].iloc[0]:,.2f}。")
+            trend = daily_trend(df)
+            if trend.empty:
+                st.info("需要同一篇笔记同时有有效发布时间和已确认点赞，才能绘制趋势。")
+            else:
+                st.line_chart(trend, x="发布时间", y="平均点赞", color="#B84A32")
+            if len(trend) == 1:
+                st.caption(f"目前只有一个有效发布日期，当日平均点赞为 {trend['平均点赞'].iloc[0]:,.2f}。")
 
 
-    for heading, dimension, builder, color in [
-            ('各星期平均互动', '星期', weekly_pattern, '#EC6A8D'),
-            ('各时段平均互动', '时段', hourly_pattern, '#7C83DB')]:
-        st.write('**'+heading+'**')
-        pattern = builder(df)
-        if pattern.empty:
-            st.info('提供有效发布时间后可查看周几规律。' if dimension == '星期' else '提供包含具体时分的有效发布时间后可查看时段规律。')
-        elif pattern['平均点赞'].notna().any():
-            st.bar_chart(pattern.dropna(subset=['平均点赞']), x=dimension, y='平均点赞', sort=False, color=color)
+        for heading, dimension, builder, color in [
+                ('各星期平均互动', '星期', weekly_pattern, '#B84A32'),
+                ('各时段平均互动', '时段', hourly_pattern, '#1B4D3E')]:
+            st.write('**'+heading+'**')
+            pattern = builder(df)
+            if pattern.empty:
+                st.info('提供有效发布时间后可查看周几规律。' if dimension == '星期' else '提供包含具体时分的有效发布时间后可查看时段规律。')
+            elif pattern['平均点赞'].notna().any():
+                st.bar_chart(pattern.dropna(subset=['平均点赞']), x=dimension, y='平均点赞', sort=False, color=color)
+            else:
+                st.info('已识别发布时间，但没有可确认的点赞数据，暂时无法绘图。')
+            if not pattern.empty:
+                show_table(pattern)
+            st.caption('按发布日期分组展示当天发布笔记的当前累计平均互动；观察时长不同时不在此直接断言“最近下降”；样本少时仅供参考。')
+            if dimension == '时段':
+                st.caption('仅有日期、没有具体时分的记录不参与时段分析；凌晨和深夜分别统计。')
+
+
+        st.write('**表现分层与内容稳定性**')
+        tiers = performance_tiers(df)
+        middle, rate = st.columns(2)
+        middle.metric('点赞中位数', metric_text(tiers['median'], 2))
+        rate.metric('爆款率', '—' if pd.isna(tiers['viral_rate']) else f"{tiers['viral_rate']:.0%}")
+        if tiers['status'] == '样本不足':
+            st.info('样本不足，暂不做分层；至少需要4篇精确点赞数据。')
         else:
-            st.info('已识别发布时间，但没有可确认的点赞数据，暂时无法绘图。')
-        if not pattern.empty:
-            show_table(pattern)
-        st.caption('按发布日期分组展示当天发布笔记的当前累计平均互动；观察时长不同时不在此直接断言“最近下降”；样本少时仅供参考。')
-        if dimension == '时段':
-            st.caption('仅有日期、没有具体时分的记录不参与时段分析；凌晨和深夜分别统计。')
+            if tiers['status'] == '四分位重合':
+                st.info('上下四分位重合，当前有效笔记统一归为中坚，暂不区分爆款。')
+            show_table(tiers['summary'])
+        st.caption(f"精确点赞有效 {tiers['valid_count']}/{len(df)} 篇；下四分位 {metric_text(tiers['p25'],2)}，上四分位 {metric_text(tiers['p75'],2)}。")
+        st.caption('爆款按本账号有效篇数的上四分位划分，用于衡量内容稳定性，不预示单篇表现。阈值并列会全部纳入，占比可能高于25%；全表有多个账号时，此处为工作表整体基准，各账号基准见横向对比。')
 
 
-    st.write('**表现分层与内容稳定性**')
-    tiers = performance_tiers(df)
-    middle, rate = st.columns(2)
-    middle.metric('点赞中位数', metric_text(tiers['median'], 2))
-    rate.metric('爆款率', '—' if pd.isna(tiers['viral_rate']) else f"{tiers['viral_rate']:.0%}")
-    if tiers['status'] == '样本不足':
-        st.info('样本不足，暂不做分层；至少需要4篇精确点赞数据。')
-    else:
-        if tiers['status'] == '四分位重合':
-            st.info('上下四分位重合，当前有效笔记统一归为中坚，暂不区分爆款。')
-        show_table(tiers['summary'])
-    st.caption(f"精确点赞有效 {tiers['valid_count']}/{len(df)} 篇；下四分位 {metric_text(tiers['p25'],2)}，上四分位 {metric_text(tiers['p75'],2)}。")
-    st.caption('爆款按本账号有效篇数的上四分位划分，用于衡量内容稳定性，不预示单篇表现。阈值并列会全部纳入，占比可能高于25%；全表有多个账号时，此处为工作表整体基准，各账号基准见横向对比。')
-
-
-    comparison = account_comparison(df)
-    if not comparison.empty:
-        st.subheader('多账号横向对比')
-        show_table(comparison)
-        comparable = comparison.dropna(subset=['平均点赞'])
-        if not comparable.empty:
-            st.bar_chart(comparable, x='账号', y='平均点赞', sort=False, color='#7C83DB')
-        st.caption('各账号分别统计；藏赞比、评赞比为逐篇有效比值的均值，不是合计相除。爆款率采用各账号自己的上四分位基准；样本不足或阈值重合时留空。')
-        st.caption('未填写账号的记录不进入横向对比；不同粉丝规模、发布时间与观察时长会影响结果，不能仅据平均互动判断运营优劣。')
+        comparison = account_comparison(df)
+        if not comparison.empty:
+            st.subheader('多账号横向对比')
+            show_table(comparison)
+            comparable = comparison.dropna(subset=['平均点赞'])
+            if not comparable.empty:
+                st.bar_chart(comparable, x='账号', y='平均点赞', sort=False, color='#1B4D3E')
+            st.caption('各账号分别统计；藏赞比、评赞比为逐篇有效比值的均值，不是合计相除。爆款率采用各账号自己的上四分位基准；样本不足或阈值重合时留空。')
+            st.caption('未填写账号的记录不进入横向对比；不同粉丝规模、发布时间与观察时长会影响结果，不能仅据平均互动判断运营优劣。')
 
     # V2 与原有统计共用清洗后的记录，保留原统计、图表与读取设置。
     account_frame = df
@@ -557,7 +597,7 @@ def main():
         account_names = df['账号名称'].fillna('未填写账号').astype(str)
         unique_names = account_names.unique().tolist()
         if len(unique_names) > 1:
-            account_name = st.selectbox('选择需要进行V2分析的账号', unique_names, key=f'v2-account-{file_key}-{sheet}')
+            account_name = st.selectbox('选择需要进行V2分析的账号', unique_names, key=f'v2-account-{file_key}-{sheet}', persist_state='session')
             account_frame = df[account_names.eq(account_name)]
             st.caption('上方基础统计为当前工作表整体数据；下方V2仅分析所选账号，避免混合定位。')
         elif unique_names:
@@ -575,8 +615,13 @@ def main():
         'source_kind': '模拟数据演示（非真实运营数据）' if is_demo else 'Excel上传', 'is_demo': is_demo,
         'scope': f'{uploaded.name} / {sheet} / 第{header_row}行表头；账号：{account_name}；共{len(account_frame)}篇。',
         'stop_reason': '已读取所选Excel明细', 'requested_limit': len(account_frame)}
-    render_period_comparison(current_snapshot)
-    render_content_analysis(current_snapshot)
+    with st.expander('内容分析与报告'):
+        anchor('deep-analysis')
+        render_period_comparison(current_snapshot)
+        render_content_analysis(current_snapshot)
+    with dashboard:
+        render_overview(df, current_snapshot if len(account_frame) == len(df) else None)
+    render_guide()
 
 
 if __name__ == "__main__":

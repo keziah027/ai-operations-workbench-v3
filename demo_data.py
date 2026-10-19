@@ -51,7 +51,7 @@ def demo_workbook(scenario):
         pd.DataFrame({'说明': [DEMO_NOTICE, f'场景：{scenario}', '包含缺失、近似、下界和零值，用于演示清洗规则。']}).to_excel(writer, sheet_name='模拟数据说明', index=False)
         demo_frame(scenario).to_excel(writer, sheet_name='模拟笔记明细', index=False, startrow=2)
         writer.sheets['模拟笔记明细'].cell(1, 1, DEMO_NOTICE)
-        writer.book.properties.creator = 'AI运营工作台·模拟数据'
+        writer.book.properties.creator = 'AI运营分析台·模拟数据'
     return output.getvalue()
 
 

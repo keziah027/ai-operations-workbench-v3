@@ -27,12 +27,21 @@ def cached_topics(notes, case_id=None):
     return session_cache('topics').get(VERSION, [case_id, notes], lambda: discover_smart_topics(notes, case_id))
 
 
+def analysis_key(snapshot):
+    notes = normalize_notes(snapshot.get('notes', []))
+    key = hashlib.sha256(json.dumps([snapshot.get('url'), snapshot.get('captured_at'), notes], ensure_ascii=False, default=str).encode()).hexdigest()[:16]
+    if st.session_state.get('restore_epoch'):
+        key += '-r' + str(st.session_state['restore_epoch'])
+    return key
+
+
 def show_sources(frame, columns):
     st.dataframe(frame[[col for col in columns if col in frame]], hide_index=True, width='stretch', column_config={
         '笔记链接': st.column_config.LinkColumn('笔记链接', display_text='打开笔记')})
 
 
 def markdown_report(snapshot, analysis):
+    from metric_display import metric_text as public_metric_text
     def rows(frame):
         return ['- ' + '；'.join(f'{col}：{value}' for col, value in row.items() if pd.notna(value)) for row in frame.to_dict('records')]
     lines = [f"# {snapshot['name']} · 账号运营分析 V3", f"读取时间：{snapshot['captured_at']}；样本 {len(snapshot['notes'])} 篇。",
@@ -51,6 +60,7 @@ def markdown_report(snapshot, analysis):
     for _, item in analysis['detail'].iterrows():
         lines.append(f"- 第{item['序号']}篇 {item['标题']}：{item['主支柱']}；封面：{item['封面类型']} {item['封面观察']}；"
                      f"原自动分类：{item.get('自动主支柱','')}；自动依据：{item.get('自动分类依据','')}；{item['特征依据']}；正文结构：{item['正文结构']}；来源：{item['笔记链接']}")
+        lines.append('  页面互动显示：'+'；'.join(f'{m}：{public_metric_text(item,m)}' for m in ('点赞','收藏','评论'))+'（缩写与+号保留平台原文）')
         lines.append(f"  自动分类：{item.get('自动主支柱','')}；自动依据：{item.get('自动分类依据','')}；"
                      f"辅助标签：{item.get('封面辅助标签','')}；已复核：{item.get('辅助标签已复核',False)}；人工正文结构：{item.get('正文结构（人工）','待标注')}")
     lines.append('封面类型配置：'+ '、'.join(analysis.get('editing',{}).get('packaging',{}).get('cover_types',[])))
@@ -83,8 +93,7 @@ def render_content_analysis(snapshot):
     if not notes:
         st.info(INSUFFICIENT)
         return
-    key = hashlib.sha256(json.dumps([snapshot.get('url'), snapshot.get('captured_at'), notes], ensure_ascii=False, default=str).encode()).hexdigest()[:16]
-    if st.session_state.get('restore_epoch'): key+='-r'+str(st.session_state['restore_epoch'])
+    key = analysis_key(snapshot)
     text_notes=[{field:note.get(field,'') for field in ['标题','正文','内容概述（整理）','笔记链接',*THEME_FIELDS]} for note in notes]
     with st.spinner('正在归纳内容主题，首次使用语义模型可能需要稍等…'):
         topics = cached_topics(text_notes, snapshot.get('id') if snapshot.get('is_case_study') else None)

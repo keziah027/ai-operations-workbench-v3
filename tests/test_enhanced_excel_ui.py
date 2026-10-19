@@ -17,6 +17,8 @@ class EnhancedExcelUITests(unittest.TestCase):
             upload=BytesIO();raw.to_excel(upload,index=False);upload.name='功能验收（模拟）.xlsx'
             with patch('streamlit.file_uploader',return_value=upload),patch('ai_ui.load_config',return_value=AIConfig()),patch('ai_ui.ask_ai') as api:
                 app=AppTest.from_file(str(Path(__file__).parents[1]/'app.py'),default_timeout=60).run()
+                app.button('cover-start').click().run()
+                app.button('source-card-0').click().run()
                 self.assertFalse(app.exception,app.exception)
                 api.assert_not_called()
                 self.assertTrue(any(x.label=='爆款率' for x in app.metric))

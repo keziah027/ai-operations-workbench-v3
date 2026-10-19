@@ -20,6 +20,7 @@ class ProjectUITests(unittest.TestCase):
                   'bio':'帮助职场新人','profile_text':'测试资料','notes':case_notes(CASES[2]),'captured_at':'2026-09-29T10:00:00','stop_reason':'测试'}
         with TemporaryDirectory() as root,patch('project_ui.STORE_ROOT',Path(root)),patch('excel_export.public_workbook',side_effect=export):
             app=AppTest.from_file(str(source),default_timeout=60).run()
+            app.button('cover-start').click().run()
             app.session_state['public_snapshot']={'input':snapshot['url'],'data':snapshot}
             app.radio[0].set_value('公开账号').run()
             widget(app,'text_area','你的账号定位结论').set_value('保存后应恢复的定位').run()
@@ -30,6 +31,7 @@ class ProjectUITests(unittest.TestCase):
             stored=load_project(entries[0]['id'],root)
             self.assertEqual(stored['state']['settings']['position'],'保存后应恢复的定位')
             fresh=AppTest.from_file(str(source),default_timeout=60).run()
+            fresh.button('cover-start').click().run()
             widget(fresh,'selectbox','选择已保存项目').set_value(entries[0]['id']).run()
             widget(fresh,'button','打开项目').click().run()
             self.assertFalse(fresh.exception,fresh.exception)

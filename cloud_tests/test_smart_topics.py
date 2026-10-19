@@ -74,11 +74,12 @@ class SmartTopicTests(unittest.TestCase):
             data=original(snapshot,analysis);captured.update(data=data,analysis=analysis);return data
         with patch('excel_export.public_workbook',side_effect=export):
             app=AppTest.from_file(str(Path(__file__).parents[1]/'app.py'),default_timeout=60).run()
-            app.radio[0].set_value('真实账号案例').run()
+            app.button('cover-start').click().run()
+            app.button('source-card-1').click().run()
             next(x for x in app.button if x.label=='加载真实账号案例').click().run()
         self.assertFalse(app.exception,app.exception)
-        self.assertEqual(app.expander[-1].label,'数据来源与说明')
-        self.assertFalse(app.expander[-1].proto.expanded)
+        self.assertEqual(app.main.expander[-1].label,'数据来源与说明')
+        self.assertFalse(app.main.expander[-1].proto.expanded)
         self.assertFalse(app.warning)
         analysis=captured['analysis']
         self.assertEqual(analysis['topic_origin'],'案例预先复核')

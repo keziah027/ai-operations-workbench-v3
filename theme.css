@@ -1,87 +1,171 @@
 :root {
-  --workspace-green: #47795c;
-  --workspace-ink: #244633;
-  --workspace-mint: #e9f4ec;
-  --workspace-border: #c8dfcf;
-}
-[data-testid="stAppViewContainer"], [data-testid="stHeader"] { background: #ffffff; }
-[data-testid="stMainBlockContainer"] { padding-top: 3rem; }
-h1, h2, h3 { color: var(--workspace-ink); }
-[data-testid="stCaptionContainer"] { color: #64796b; }
-
-/* 三块数据来源入口；保留原生单选框和键盘操作。 */
-[data-testid="stRadio"] [role="radiogroup"] {
-  display: flex; flex-wrap: wrap; gap: 14px; width: 100%; max-width: 900px;
-}
-[data-testid="stRadioGroup"] > div { flex: 1 1 180px; min-width: 0; }
-[data-testid="stRadioOption"] {
-  display: flex; width: 100%; min-height: 94px; margin: 0; padding: 18px 22px;
-  box-sizing: border-box; background: #edf5ef; border: 1px solid var(--workspace-border);
-  border-radius: 10px; box-shadow: 0 3px 10px #24463306;
-  transition: background .15s ease, border-color .15s ease;
-}
-[data-testid="stRadioOption"]:hover {
-  background: #edf6ef; border-color: #90b79e;
-}
-[data-testid="stRadioOption"]:has(input:checked) {
-  background: #dceee1; border: 2px solid #7fa98c; padding: 17px 21px;
-}
-[data-testid="stRadioOption"] p {
-  color: var(--workspace-ink); font-size: 1.02rem; font-weight: 600;
+  --bg-canvas: #F6F5F0;
+  --bg-surface: #FDFCFA;
+  --bg-subtle: #EFECE4;
+  --ink: #161615;
+  --ink-secondary: #4A4945;
+  --muted: #6E6C66;
+  --glass: #FDFCFA;
+  --edge: #DFDCD2;
+  --edge-strong: #C7C3B6;
+  --accent: #1B4D3E;
+  --accent-hover: #143B2F;
+  --accent-soft: #E5EFEA;
+  --terra: #B84A32;
+  --shadow: none;
 }
 
-/* 淡绿、短圆角、方块感按钮。 */
+/* 来源选择页保持无侧栏，居中台账布局 */
+body:has(.st-key-source-picker) [data-testid="stSidebar"],
+body:has(.st-key-source-picker) [data-testid="stSidebarCollapsedControl"],
+body:has(.st-key-source-picker) [data-testid="stExpandSidebarButton"] {display:none !important;}
+body:has(.st-key-source-picker) [data-testid="stMain"] {margin-left:0 !important;width:100%;}
+.st-key-source-retained-upload {display:none !important;}
+.st-key-source-picker {width:min(680px, 92%) !important;margin:clamp(44px, 9vh, 88px) auto 0 !important;gap:24px !important;}
+.source-picker-title {display:flex;align-items:baseline;gap:10px;line-height:1.25 !important;margin:0 !important;padding:0 0 14px !important;border-bottom:1px solid var(--edge);}
+.source-title-lead {font-size:28px;font-weight:600;color:var(--ink);}
+.source-title-main {font-size:28px;font-weight:600;color:var(--accent);}
+
+/* 彻底删除全站所有说明小字（st.caption）与问号提示图标 */
+[data-testid="stElementContainer"]:has([data-testid="stCaptionContainer"]),
+[data-testid="stCaptionContainer"],
+[data-testid="stTooltipIcon"] {display:none !important;}
+
+/* 来源选择页台账式列表按钮 */
+.st-key-source-options {gap:0 !important;background:var(--bg-surface);border:1px solid var(--edge);border-radius:6px;overflow:hidden;}
+.st-key-source-options [data-testid="stButton"] button {width:100%;min-height:68px;padding:18px 22px;justify-content:flex-start;gap:16px;border:0;border-bottom:1px solid var(--edge);border-radius:0;background:var(--bg-surface);color:var(--ink);box-shadow:none;transition:background-color 140ms ease,padding-left 140ms ease;}
+.st-key-source-card-3 [data-testid="stButton"] button {border-bottom:0;}
+.st-key-source-options [data-testid="stButton"] button p {font-size:18px;font-weight:600;color:var(--ink);}
+.st-key-source-options [data-testid="stButton"] button > div {flex:1;}
+.st-key-source-options [data-testid="stButton"] button > div > span {width:100%;justify-content:flex-start;gap:16px;}
+.st-key-source-options [data-testid="stButton"] button [data-testid="stIconMaterial"] {font-size:22px;color:var(--accent);}
+.st-key-source-options [data-testid="stButton"] button::after {content:"";display:block;flex:none;width:8px;height:8px;border-top:1.8px solid var(--ink-secondary);border-right:1.8px solid var(--ink-secondary);transform:rotate(45deg);margin-left:auto;}
+.st-key-source-options [data-testid="stButton"] button:hover:not(:disabled) {background:var(--bg-subtle);padding-left:26px;color:var(--accent);box-shadow:none;transform:none;}
+
+html {scroll-behavior:smooth;}
+[data-testid="stAppViewContainer"] {background:var(--bg-canvas);color:var(--ink);font-family:"Inter",-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;}
+[data-testid="stHeader"] {background:transparent;}
+[data-testid="stToolbarActions"],[data-testid="stAppDeployButton"],[data-testid="stMainMenu"] {display:none;}
+[data-testid="stMainBlockContainer"] {max-width:1440px;padding:2.2rem 2rem 3rem;}
+[data-testid="stVerticalBlock"] {gap:.85rem;}
+h1,h2,h3,h4 {color:var(--ink);letter-spacing:-.02em;}
+h1 {font-size:28px !important;font-weight:600 !important;}
+h2 {font-size:20px !important;font-weight:600 !important;}
+h3 {font-size:16px !important;font-weight:600 !important;}
+
+/* 左侧固定导航栏（纸本墨绿风格） */
+[data-testid="stSidebar"] {background:var(--bg-surface);border-right:1px solid var(--edge);min-width:240px;max-width:256px;}
+[data-testid="stSidebarUserContent"] {padding:1.1rem 1rem;}
+[data-testid="stSidebarHeader"] {padding:10px 10px 0;}
+.sidebar-brand {position:relative;padding:0 0 18px 38px;margin:6px 0 12px;border-bottom:1px solid var(--edge);}
+.brand-mark {position:absolute;left:0;top:2px;width:28px;height:28px;display:grid;place-items:center;border-radius:4px;background:var(--accent);color:#FFFFFF;font-size:14px;font-weight:700;box-shadow:none;}
+.sidebar-brand strong {display:block;font-size:16px;font-weight:600;padding-top:3px;color:var(--ink);}
+.workspace-nav {display:flex;flex-direction:column;gap:4px;margin:8px 0 20px;}
+.workspace-nav a {display:flex;align-items:center;gap:12px;padding:9px 12px;color:var(--ink-secondary);text-decoration:none;font-size:14px;font-weight:500;border-left:2px solid transparent;border-radius:4px;transition:background-color .12s,color .12s;}
+.workspace-nav a .nav-icon {width:18px;height:18px;flex:none;}
+.workspace-nav a:hover {background:var(--bg-subtle);color:var(--ink);}
+.workspace-nav a.nav-overview {background:var(--accent-soft);color:var(--accent);border-left-color:var(--accent);font-weight:600;}
+body:has(.section-anchor:target) .workspace-nav a.nav-overview {background:none;color:var(--ink-secondary);border-left-color:transparent;font-weight:500;}
+body:has(#overview:target) .nav-overview,
+body:has(#deep-analysis:target) .nav-deep-analysis,
+body:has(#data-trend:target) .nav-data-trend,
+body:has(#content-distribution:target) .nav-content-distribution,
+body:has(#detail-analysis:target) .nav-detail-analysis,
+body:has(#operations-advice:target) .nav-operations-advice,
+body:has(#data-upload:target) .nav-data-upload,
+body:has(#user-guide:target) .nav-user-guide {background:var(--accent-soft) !important;color:var(--accent) !important;border-left-color:var(--accent) !important;font-weight:600 !important;}
+[data-testid="stSidebar"] [data-testid="stRadioOption"] p {font-size:14px;}
+
+/* 顶部紧凑横幅（去除CSS圆球与假柱状图装饰） */
+.st-key-glass-hero {display:flex;flex-direction:row;align-items:center;justify-content:space-between;padding:16px 22px !important;border:1px solid var(--edge);border-radius:6px;background:var(--bg-surface);box-shadow:none;min-height:0;}
+.hero-copy h1 {font-size:24px !important;font-weight:600;margin:0;padding:0;line-height:1.3;color:var(--ink);}
+.hero-art {display:none !important;}
+.st-key-glass-hero [data-testid="stButton"] {width:max-content;}
+.st-key-glass-hero [data-testid="stButton"] button {min-height:38px;padding:7px 16px;}
+
+.section-anchor {height:0;scroll-margin-top:65px;}
+[data-testid="stElementContainer"]:has(>.stHtml>.section-anchor) {margin-top:-.85rem;}
+.compact-empty {padding:64px 20px;text-align:center;color:var(--ink-secondary);font-size:14px;background:var(--bg-surface);border:1px solid var(--edge);border-radius:6px;}
+
+/* 核心指标与台账面板（去过度卡片化、去彩色小圆点、去阴影） */
+[data-testid="stMetric"] {position:relative;min-height:84px;padding:16px 18px;border:1px solid var(--edge);border-radius:6px;background:var(--bg-surface);box-shadow:none;}
+[data-testid="stMetricLabel"] p {color:var(--ink-secondary) !important;font-size:14px !important;font-weight:500 !important;}
+[data-testid="stMetricValue"] {color:var(--ink);font-size:28px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
+.st-key-overview-kpis [data-testid="stMetric"]::after {display:none !important;}
+.st-key-overview-kpis [data-testid="stColumn"]:last-child [data-testid="stMetricValue"] {color:var(--accent);}
+
+.st-key-overview-trend,
+.st-key-overview-distribution,
+.st-key-overview-top,
+.st-key-overview-efficiency,
+.st-key-overview-format,
+.st-key-overview-advice {background:var(--bg-surface);border:1px solid var(--edge) !important;border-radius:6px !important;padding:18px 20px !important;box-shadow:none !important;}
+.st-key-overview-advice {border-left:3px solid var(--accent) !important;}
+
+/* 分段按钮组 */
+.st-key-overview-metric [data-testid="stButtonGroup"] {background:var(--bg-subtle);border:1px solid var(--edge);border-radius:4px;padding:2px;}
+.st-key-overview-metric button {font-size:13px;min-height:30px;border:0 !important;border-radius:3px !important;padding:4px 12px !important;background:transparent;color:var(--ink-secondary);}
+.st-key-overview-metric button[aria-pressed="true"] {background:var(--bg-surface);color:var(--accent);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.05);}
+
+/* 内容分类图例 */
+.distribution-legend {display:flex;flex-direction:column;gap:12px;justify-content:center;min-height:190px;max-height:210px;overflow-y:auto;padding:8px 0;box-sizing:border-box;}
+.small-legend {min-height:145px;max-height:165px;gap:10px;}
+.legend-row {display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink);}
+.legend-row i {width:9px;height:9px;border-radius:2px;flex:none;}
+.legend-row span {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;}
+.legend-row b {margin-left:auto;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink);}
+
+/* TOP5 台账表格 */
+.ranking-wrap {overflow-x:auto;}
+.ranking-table {width:100%;table-layout:fixed;border-collapse:collapse;font-size:14px;}
+.ranking-table th {font-size:13px;color:var(--ink-secondary);font-weight:600;padding:8px 6px 10px;text-align:right;border-bottom:1px solid var(--edge-strong);}
+.ranking-table td {padding:13px 6px;border-bottom:1px solid var(--edge);color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;}
+.ranking-table th:first-child,.ranking-table td:first-child {width:34px;text-align:left;}
+.ranking-table th:nth-child(2),.ranking-table td:nth-child(2) {width:48%;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink);font-weight:500;}
+.ranking-table td:nth-child(3) {font-weight:600;color:var(--ink);}
+.rank {color:var(--ink-secondary);font-size:13px;font-weight:600;}
+.rank-1 {color:var(--terra);font-weight:700;}
+
+/* 互动效率子面板 */
+[class*="st-key-rate-"] {padding:12px 14px 6px;border-radius:4px;border:1px solid var(--edge);background:var(--bg-subtle);gap:0 !important;}
+[class*="st-key-rate-"] [data-testid="stMetric"] {padding:0;min-height:58px;border:0;border-radius:0;background:none;box-shadow:none;}
+[class*="st-key-rate-"] [data-testid="stMetricValue"] {font-size:24px;color:var(--ink);}
+[class*="st-key-rate-"] [data-testid="stMetricLabel"] p {font-size:13px !important;}
+
+/* 运营建议列表 */
+.advice-list {list-style:none;counter-reset:advice;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;}
+.advice-list li {position:relative;padding-left:28px;font-size:14px;line-height:1.6;color:var(--ink);}
+.advice-list li:before {counter-increment:advice;content:"0" counter(advice);position:absolute;left:0;top:2px;width:20px;height:20px;text-align:center;line-height:20px;border-radius:3px;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;}
+.advice-more {display:block;text-align:right;font-size:14px;font-weight:600;text-decoration:none;color:var(--accent) !important;margin-top:6px;}
+
+/* 通用按钮、表单与表格控件 */
 [data-testid="stButton"] button,
 [data-testid="stDownloadButton"] button,
 [data-testid="stLinkButton"] a,
-[data-testid="stFileUploader"] button {
-  min-height: 60px; min-width: 138px; padding: 14px 20px;
-  border: 1px solid #b8d5c2; border-radius: 8px;
-  background: var(--workspace-mint); color: var(--workspace-ink);
-  box-shadow: 0 3px 0 #dce9e0;
-  transition: background .15s ease, border-color .15s ease, transform .15s ease;
-}
-[data-testid="stButton"] button[kind="primary"] {
-  background: #cbe6d4; border-color: #96bea4; font-weight: 600;
-}
-[data-testid="stButton"] button:hover:not(:disabled),
-[data-testid="stDownloadButton"] button:hover:not(:disabled),
-[data-testid="stLinkButton"] a:hover,
-[data-testid="stFileUploader"] button:hover:not(:disabled) {
-  background: #d7eadc; border-color: #7fa98c; color: #1e4830; transform: translateY(-1px);
-}
-[data-testid="stButton"] button:active:not(:disabled),
-[data-testid="stDownloadButton"] button:active:not(:disabled) {
-  transform: translateY(1px); box-shadow: none;
-}
-[data-testid="stButton"] button:disabled,
-[data-testid="stDownloadButton"] button:disabled { opacity: .5; box-shadow: none; }
-button:focus-visible, a:focus-visible,
-[data-testid="stRadio"] label:has(input:focus-visible) {
-  outline: 3px solid #47795c !important; outline-offset: 3px;
-}
-[data-testid="stAlertContainer"] { border-radius: 10px; }
-[data-testid="stAlertContainer"]:has([data-testid="stAlertContentInfo"]) {
-  background: #e7f2ea; border: 1px solid #d4e6da;
-}
-[data-testid="stAlertContentInfo"] [data-testid="stMarkdownContainer"] { color: #3c644b; }
-[data-testid="stFileUploaderDropzone"] {
-  background: #edf5ef; border: 1px dashed #accbb7; border-radius: 12px;
-}
-[data-testid="stExpander"] > details { background: #f0f7f2; border-color: #c8dfcf; }
-[data-baseweb="tab-list"] { gap: 10px; }
-[data-baseweb="tab"] { border-radius: 7px 7px 0 0; padding: 8px 14px; }
-[data-baseweb="tab"][aria-selected="true"] { background: #e2f0e6; color: #315f42; }
-[data-baseweb="tab-highlight"] { background: #6f9d7f; }
+[data-testid="stFileUploader"] button {min-height:38px;border:1px solid var(--edge-strong);border-radius:4px;background:var(--bg-surface);color:var(--ink);padding:7px 14px;box-shadow:none;transition:background-color .14s,border-color .14s;}
+[data-testid="stButton"] button p,[data-testid="stDownloadButton"] button p {font-size:14px;font-weight:500;}
+[data-testid="stButton"] button[kind="primary"],[data-testid="stFormSubmitButton"] button[kind="primary"] {background:var(--accent);border:1px solid var(--accent);color:#FFFFFF;box-shadow:none;}
+[data-testid="stButton"] button[kind="primary"] p,[data-testid="stFormSubmitButton"] button[kind="primary"] p {color:#FFFFFF !important;}
+[data-testid="stButton"] button:hover:not(:disabled),[data-testid="stDownloadButton"] button:hover:not(:disabled) {background:var(--bg-subtle);border-color:var(--ink-secondary);transform:none;box-shadow:none;}
+[data-testid="stButton"] button[kind="primary"]:hover:not(:disabled),[data-testid="stFormSubmitButton"] button[kind="primary"]:hover:not(:disabled) {background:var(--accent-hover);border-color:var(--accent-hover);}
+button:disabled {opacity:.45;}
+button:focus-visible,a:focus-visible {outline:2px solid var(--accent) !important;outline-offset:2px;}
 
-@media (max-width: 600px) {
-  [data-testid="stMainBlockContainer"] { padding-top: 1.6rem; }
-  [data-testid="stRadio"] [role="radiogroup"] { gap: 8px; }
-  [data-testid="stRadioGroup"] > div { flex-basis: 100%; }
-  [data-testid="stRadioOption"] { min-height: 64px; }
-  [data-testid="stButton"] button, [data-testid="stDownloadButton"] button,
-  [data-testid="stLinkButton"] a { width: 100%; min-width: 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { transition: none !important; }
+[data-testid="stExpander"]>details {border:1px solid var(--edge);border-radius:6px;background:var(--bg-surface);box-shadow:none;}
+[data-testid="stExpander"] summary {color:var(--ink);}
+[data-testid="stExpander"] summary p {font-size:14px;font-weight:600;}
+[data-testid="stFileUploaderDropzone"] {background:var(--bg-subtle);border:1px dashed var(--edge-strong);border-radius:6px;padding:18px;}
+[data-baseweb="select"]>div,[data-baseweb="input"],[data-baseweb="textarea"] {border-radius:4px;background:var(--bg-surface);border-color:var(--edge-strong);}
+[data-baseweb="tab-list"] {gap:4px;background:var(--bg-subtle);padding:4px;border-radius:6px;border:1px solid var(--edge);}
+[data-baseweb="tab"] {padding:8px 14px;border-radius:4px;height:auto;color:var(--ink-secondary);font-size:14px;font-weight:500;}
+[data-baseweb="tab"][aria-selected="true"] {background:var(--bg-surface);color:var(--accent);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.05);}
+[data-baseweb="tab-highlight"],[data-baseweb="tab-border"] {display:none;}
+[data-testid="stDataFrame"],[data-testid="stDataEditor"] {border-radius:6px;overflow:hidden;border:1px solid var(--edge);background:var(--bg-surface);}
+[data-testid="stAlertContainer"] {border-radius:6px;border:1px solid var(--edge);}
+[data-testid="stAlertContainer"] p {font-size:14px;}
+
+@media(max-width:760px) {
+ [data-testid="stMainBlockContainer"] {padding:2rem 1rem 2rem;}
+ .st-key-overview-kpis [data-testid="stHorizontalBlock"] {flex-wrap:wrap;gap:10px;}
+ .st-key-overview-kpis [data-testid="stColumn"] {min-width:calc(50% - 10px) !important;flex:1 1 calc(50% - 10px) !important;}
 }

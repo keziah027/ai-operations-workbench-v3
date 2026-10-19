@@ -60,6 +60,8 @@ class PublicTests(unittest.TestCase):
         with patch('excel_export.public_workbook', side_effect=capture):
             for scenario in SCENARIOS:
                 app = AppTest.from_file(APP, default_timeout=90).run()
+                app.button('cover-start').click().run()
+                app.button('source-card-0').click().run()
                 self.assertFalse(app.exception, app.exception)
                 widget(app, 'selectbox', '选择演示账号类型').set_value(scenario).run()
                 widget(app, 'button', '加载演示数据').click().run()
@@ -89,10 +91,14 @@ class PublicTests(unittest.TestCase):
 
     def test_sessions_isolated_and_cloud_browser_unavailable(self):
         app = AppTest.from_file(APP, default_timeout=90).run()
+        app.button('cover-start').click().run()
+        app.button('source-card-0').click().run()
         widget(app, 'button', '加载演示数据').click().run()
         widget(app, 'button', '保存项目').click().run()
         self.assertEqual(len(app.session_state['_private_projects']), 1)
         fresh = AppTest.from_file(APP, default_timeout=90).run()
+        fresh.button('cover-start').click().run()
+        fresh.button('source-card-0').click().run()
         self.assertEqual(len(fresh.session_state['_private_projects']), 0)
         self.assertEqual(widget(fresh, 'selectbox', '选择已保存项目').options, ['请选择项目'])
         for mode in ['公开账号', '我的账号后台']:
@@ -114,6 +120,8 @@ class PublicTests(unittest.TestCase):
         from cloud_projects import import_project, load_project
         from project_store import ProjectError
         app = AppTest.from_file(APP, default_timeout=90).run()
+        app.button('cover-start').click().run()
+        app.button('source-card-0').click().run()
         widget(app, 'button', '加载演示数据').click().run()
         widget(app, 'button', '保存项目').click().run()
         data = app.session_state['active_project']

@@ -25,6 +25,7 @@ class UIRegressionTests(unittest.TestCase):
             return next(item for item in getattr(app,kind) if item.label==label)
         with patch('excel_export.public_workbook',side_effect=export):
             app=AppTest.from_file(str(Path(__file__).parents[1]/'app.py'),default_timeout=45).run()
+            app.button('cover-start').click().run()
             for index,case in enumerate(CASES):
                 notes=case_notes(case)
                 notes[0]['点赞']='1.2万'
@@ -54,7 +55,8 @@ class UIRegressionTests(unittest.TestCase):
                 self.assertNotIn('收藏率',headers)
                 self.assertIn('藏赞比',headers)
                 self.assertEqual(book['笔记明细'].cell(5,headers.index('点赞原文')+1).value,'1.2万')
-                self.assertIsNone(book['笔记明细'].cell(5,headers.index('点赞')+1).value)
+                self.assertEqual(book['笔记明细'].cell(5,headers.index('点赞')+1).value,'1.2万')
+                self.assertIsNone(book['笔记明细'].cell(5,headers.index('点赞（精确值）')+1).value)
             # Edit a note and then change the commerce gate; manual values survive the editor reconfiguration.
             normal=normalize_notes(notes)
             key=hashlib.sha256(json.dumps([snapshot['url'],snapshot['captured_at'],normal],ensure_ascii=False,default=str).encode()).hexdigest()[:16]

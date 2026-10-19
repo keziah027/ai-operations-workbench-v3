@@ -19,6 +19,41 @@ def fixture():
 
 
 class CaseTests(unittest.TestCase):
+    def test_page_dates_have_evidence_without_inventing_first_publication(self):
+        from datetime import date
+        count = 0
+        for case in list_cases():
+            for note in case['notes']:
+                date.fromisoformat(note['页面日期'])
+                self.assertTrue(note['页面日期原文'])
+                self.assertTrue(note['页面日期采集时间'])
+                self.assertTrue(note['页面日期依据'])
+                self.assertIsNone(note.get('发布时间'))
+                if '编辑' in note['页面日期原文']:
+                    self.assertEqual(note['页面日期性质'], '编辑日期')
+                count += 1
+        self.assertEqual(count, 72)
+
+    def test_media_review_matches_verified_counts_and_preserves_unknown(self):
+        from collections import Counter
+        expected = {'telado-2026-10-12': {'图文':11, '视频':7},
+                    'xiaolin-2026-10-12': {'视频':17, '':1},
+                    'fangqi-2026-10-12': {'图文':1, '视频':17},
+                    'jiangchenglan-2026-10-19': {'图文':4, '视频':14}}
+        total = 0
+        for case in list_cases():
+            self.assertEqual(dict(Counter(n.get('内容形式', '') for n in case['notes'])), expected[case['id']])
+            for note in case['notes']:
+                if note.get('内容形式'):
+                    total += 1
+                    self.assertEqual(note['内容形式'], note['图文/视频'])
+                    self.assertEqual(note['内容形式核验日期'], '2026-10-19' if case['id']=='jiangchenglan-2026-10-19' else '2026-10-18')
+                    self.assertIn('data-type=', note['内容形式依据'])
+                else:
+                    self.assertIn('404', note['内容形式核验状态'])
+            self.assertTrue(case['captured_at'].startswith('2026-10-19' if case['id']=='jiangchenglan-2026-10-19' else '2026-10-12'))
+        self.assertEqual(total, 71)
+
     def test_published_case_keeps_missing_data_and_provenance(self):
         cases=list_cases()
         self.assertEqual(len(cases),4)
@@ -40,8 +75,10 @@ class CaseTests(unittest.TestCase):
                     if note[metric+'精度'] in ('近似','下界'):
                         self.assertIsNone(note[metric])
                         self.assertTrue(note[metric+'原文'])
-        historical=next(case for case in cases if case['id']=='chengshian-2026-10-12')
-        self.assertIn('2023',historical['scope'])
+        replacement=next(case for case in cases if case['id']=='jiangchenglan-2026-10-19')
+        self.assertTrue(replacement['exclude_pinned'])
+        self.assertEqual(len(replacement['notes']),18)
+        self.assertTrue(all(note['是否置顶'] is False for note in replacement['notes']))
 
     def test_requires_provenance_and_rejects_credentials(self):
         source=fixture()
@@ -62,7 +99,8 @@ class CaseTests(unittest.TestCase):
         with patch('real_cases.list_cases', return_value=[fixture()]):
             app=AppTest.from_file(str(Path(__file__).parents[1]/'app.py'),default_timeout=90).run()
             self.assertFalse(app.exception)
-            app.radio[0].set_value('真实账号案例').run()
+            app.button('cover-start').click().run()
+            app.button('source-card-1').click().run()
             next(b for b in app.button if b.label=='加载真实账号案例').click().run()
             self.assertFalse(app.exception)
             self.assertEqual(len([t for t in app.tabs if '账号画像' in t.label]),1)

@@ -66,12 +66,14 @@ def metric_summary(frame):
 
 
 def ranking(frame):
+    from metric_display import display_ranking, display_info
     rows = []
     for metric in METRICS:
-        top = frame.dropna(subset=[metric]).sort_values(metric, ascending=False, kind="stable").head(10)
+        top = display_ranking(frame, metric, 10)
         for position, (_, note) in enumerate(top.iterrows(), 1):
-            rows.append({"榜单": f"{metric} TOP10", "排名": position, "序号": note["序号"],
-                         "标题": note["标题"], "指标数值": note[metric], "发布时间": note["发布时间"],
+            info = display_info(note,metric)
+            rows.append({"榜单": f"{metric} TOP10（页面显示值；同值不区分）", "排名": int(note['_显示分组']), "序号": note["序号"],
+                         "标题": note["标题"], "指标数值": info['raw'] if info['precision'] in ('近似','下界') else note[metric], "发布时间": note["发布时间"],
                          "笔记链接": note["笔记链接"]})
     return pd.DataFrame(rows, columns=["榜单", "排名", "序号", "标题", "指标数值", "发布时间", "笔记链接"])
 
@@ -80,7 +82,7 @@ class Report:
     def __init__(self):
         self.book = Workbook()
         self.book.remove(self.book.active)
-        self.book.properties.creator = "AI运营工作台"
+        self.book.properties.creator = "AI运营分析台"
         self.long_text = []
 
     def sheet(self, name):
@@ -207,7 +209,7 @@ def report_summary(report, snapshot, notes, kind, extra=()):
                 ("空值与零", "空单元格为未读取或未确认，数字 0 为已确认的零。各项均值仅使用该项有效记录。"),
                 ("互动率口径", "藏赞比=收藏/点赞，评赞比=评论/点赞；点赞为0或所需数值缺失时留空。不是曝光转化率。"),
                 ("长文本", "正文等字段可在单元格编辑栏查看完整内容；超过 Excel 单格限制时放入长文本补充。")]
-    following, _ = report.table(sheet, "AI运营工作台 · 数据与分析", pd.DataFrame(metadata, columns=["项目", "值"]))
+    following, _ = report.table(sheet, "AI运营分析台 · 数据与分析", pd.DataFrame(metadata, columns=["项目", "值"]))
     report.table(sheet, "本次笔记互动汇总", metric_summary(notes), row=following)
 
 
@@ -275,7 +277,8 @@ def public_workbook(snapshot, analysis):
         detail = detail.drop(columns=['商品提及', '购买引导', '店铺/橱窗', '商品/系列（人工确认）'], errors='ignore')
     report.table(report.sheet("内容拆解明细"), "内容结构、包装特征、证据与人工标注", detail, filter_rows=True)
     report.table(report.sheet("排行榜"), "本次笔记三项 TOP10", ranking(notes), filter_rows=True)
-    report.table(report.sheet("笔记明细"), "已读取笔记及原始显示字段", notes, filter_rows=True)
+    from metric_display import export_display
+    report.table(report.sheet("笔记明细"), "已读取笔记及原始显示字段（万与+保留原文）", export_display(notes), filter_rows=True)
     if v2:
         report.table(report.sheet('比较样本范围'), '每篇笔记的纳入与排除原因', analysis['sample_audit'], filter_rows=True)
         for table_name, table in analysis['backend_tables'].items():

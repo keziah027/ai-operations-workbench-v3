@@ -31,6 +31,7 @@ def widget(app,kind,label): return next(item for item in getattr(app,kind) if it
 
 def loaded_app():
     app=AppTest.from_file(str(ROOT/'app.py'),default_timeout=45).run()
+    app.button('cover-start').click().run()
     snapshot,_=fixture(); snapshot['url']='https://www.xiaohongshu.com/user/profile/testmbti'
     snapshot.update(profile_text='模拟测试简介',stop_reason='测试样本已加载')
     app.session_state['public_snapshot']={'input':snapshot['url'],'data':snapshot}
@@ -116,6 +117,7 @@ class AIUITests(unittest.TestCase):
             self.assertEqual(saved['state']['ai_workspace']['accepted']['sections']['profile'],'人工编辑后采纳的结论')
             # Fresh session restores AI state without a request.
             restored=AppTest.from_file(str(ROOT/'app.py'),default_timeout=45).run()
+            restored.button('cover-start').click().run()
             restored.session_state['active_project']=saved
             restored.session_state['show_saved_project']=True
             restored.session_state['restore_epoch']=1
