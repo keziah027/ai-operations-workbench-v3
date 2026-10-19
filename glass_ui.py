@@ -43,31 +43,22 @@ def start_upload():
     st.session_state['open-upload'] = True
 
 
-def render_hero():
-    has_data = bool(st.session_state.get('excel-upload') or st.session_state.get('demo_scenario')
-                    or st.session_state.get('public_snapshot') or st.session_state.get('active_project'))
+def render_hero(sources):
+    from source_picker import open_source_picker
     with st.container(key='glass-hero'):
         st.html('<div class="hero-copy"><h1>AI运营分析台</h1></div>')
-        st.button('上传 Excel 开始分析' if has_data else '开始体验', icon=':material/upload_file:',
-                  type='primary', key='hero-upload', on_click=start_upload)
+        st.button('返回数据来源', icon=':material/arrow_back:',
+                  key='source-back', on_click=open_source_picker)
+        render_workspace_menu(sources)
 
 
-def render_sidebar(sources):
-    from source_picker import select_source, open_source_picker
-    with st.sidebar:
-        st.html('<div class="sidebar-brand"><div class="brand-mark">A</div><strong>AI运营分析台</strong></div>')
-        if not st.session_state.get('source-picker-open', True) or st.session_state.get('show_saved_project'):
-            st.button('返回数据来源', icon=':material/arrow_back:', key='source-back', on_click=open_source_picker)
+def render_workspace_menu(sources):
+    from source_picker import select_source
+    with st.popover('项目与数据', icon=':material/folder_open:'):
         with st.expander('数据来源'):
             mode = st.radio('数据来源', sources, key='data-source', width='stretch', label_visibility='collapsed', on_change=select_source)
-        if mode == 'Excel 文件' and not st.session_state.get('show_saved_project'):
-            links = ''.join(f'<a class="nav-{name}" href="#{name}" target="_self">{icon(symbol)}<span>{title}</span></a>' for name, title, symbol in NAV)
-            st.html('<nav class="workspace-nav" aria-label="分析导航">' + links + '</nav>')
         from project_ui import project_picker
         project_picker()
-        with st.expander('使用说明'):
-            st.write('上传 Excel 或加载演示数据，查看看板后可继续做内容分析、人工标注及报告导出。')
-            st.caption('缺失与近似数值不参与精确统计。')
     return mode
 
 

@@ -58,11 +58,10 @@ def public_account_page():
 
     if public_mode():
         st.subheader('公开账号主页读取')
-        st.info('此功能需要本机浏览器登录，在公开网站上无法弹出你的登录窗口。原版读取功能保留在本地模式；在线可切换到“真实账号案例”体验已采集的公开快照，或上传 Excel、加载模拟数据。')
+        st.write('主页读取仅支持本地版。网页版请返回数据来源，选择真实账号案例或上传 Excel。')
         return
 
     st.subheader("公开账号主页读取")
-    st.info("可向下加载更多笔记，并逐篇打开详情读取点赞、收藏和评论。实际数量取决于页面可见范围，不能保证覆盖账号全部历史。")
     st.caption("先在专用小红书窗口登录，再粘贴目标账号链接。类似“1千+”的模糊数字保留原文，不转换成精确统计。")
     login, close, clear = st.columns(3)
     state = account_browser().job_status()
@@ -186,11 +185,10 @@ def creator_account_page():
 
     if public_mode():
         st.subheader('自有账号后台数据')
-        st.info('后台同步需要账号所有者在本机浏览器登录。原版同步功能保留在本地模式；在线可上传包含曝光、观看、涨粉等字段的 Excel，继续使用后台指标分析。')
+        st.write('后台同步仅支持本地版。网页版请返回数据来源，上传后台导出的 Excel。')
         return
 
     st.subheader("自有账号后台数据")
-    st.info("在专用窗口登录小红书创作服务平台后，可以同步账号总览和笔记明细。只读取后台页面中已显示的数据。")
     state = account_browser().job_status()
     busy = bool(state and state["status"] == "running")
     left, right = st.columns(2)
@@ -339,7 +337,7 @@ def show_table(df):
 
 
 def real_case_page(cases):
-    from real_cases import case_snapshot, NOTICE
+    from real_cases import case_snapshot
     st.subheader('真实账号案例')
     if not cases:
         st.info('暂无可用的真实案例快照，请补充已核验的案例文件后再使用。')
@@ -358,10 +356,7 @@ def real_case_page(cases):
         st.session_state['active-real-case-id'] = chosen
     active = st.session_state.get('active-real-case-id')
     if active == chosen:
-        st.info('当前分析案例：' + options[active]['name'])
         render_public_snapshot(case_snapshot(options[active]))
-    else:
-        st.info(NOTICE)
 
 
 def main():
@@ -376,24 +371,21 @@ def main():
         render_cover()
         retain_upload()
         return
-    from glass_ui import render_hero, render_sidebar, render_empty, render_overview, render_guide, anchor
+    from glass_ui import render_hero, render_workspace_menu, render_empty, render_overview, render_guide, anchor
     from real_cases import list_cases
     cases = list_cases()
     from source_picker import SOURCES, render_source_picker, retain_upload
     st.session_state.setdefault('source-picker-open', not any(st.session_state.get(key)
         for key in ('excel-upload', 'demo_scenario', 'public_snapshot', 'creator_snapshot', 'active_project')))
-    mode = render_sidebar(list(SOURCES))
+    mode = st.session_state.setdefault('data-source', SOURCES[0])
     if st.session_state['source-picker-open'] and not st.session_state.get('show_saved_project'):
         render_source_picker()
+        render_workspace_menu(list(SOURCES))
         retain_upload()
         return
     if mode != 'Excel 文件' or st.session_state.get('show_saved_project'):
         retain_upload()
-    render_hero()
-    if public_mode():
-        with st.sidebar.expander('演示模式与数据说明'):
-            st.info('无需注册：选择“真实账号案例”分析真实公开快照，或点击“加载演示数据”体验模拟账号。AI助手采用规则演示，不调用付费API。')
-            st.caption('上传文件仅用于当前访客会话的分析；不会保存到共享项目目录。请勿上传个人隐私或商业机密，离开前可下载报告与项目存档。')
+    render_hero(list(SOURCES))
     if st.session_state.get('show_saved_project') and st.session_state.get('active_project'):
         from content_ui import render_content_analysis
         anchor('deep-analysis')

@@ -22,10 +22,10 @@ class SourcePickerTests(unittest.TestCase):
         self.clean(app)
         self.assertEqual([b.label for b in app.button if b.key and b.key.startswith('source-card-')],
                          ['Excel 文件', '真实账号案例', '公开账号', '我的账号后台'])
-        for index, expected in [(2, '此功能需要本机浏览器登录'), (3, '后台同步需要账号所有者在本机浏览器登录')]:
+        for index, expected in [(2, '主页读取仅支持本地版'), (3, '后台同步仅支持本地版')]:
             app.button(f'source-card-{index}').click().run()
             self.clean(app)
-            self.assertTrue(any(expected in message.value for message in app.info))
+            self.assertTrue(any(expected in message.value for message in app.markdown))
             self.assertFalse(app.session_state['source-picker-open'])
             app.button('source-back').click().run()
             self.assertTrue(app.session_state['source-picker-open'])
