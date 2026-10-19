@@ -371,7 +371,8 @@ def main():
         render_cover()
         retain_upload()
         return
-    from glass_ui import render_hero, render_workspace_menu, render_empty, render_overview, render_guide, anchor
+    from glass_ui import render_empty, render_overview, render_guide, anchor
+    from workspace_navigation import render_hero, render_workspace_menu
     from real_cases import list_cases
     cases = list_cases()
     from source_picker import SOURCES, render_source_picker, retain_upload
