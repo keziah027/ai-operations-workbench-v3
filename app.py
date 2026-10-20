@@ -154,7 +154,7 @@ def render_public_snapshot(snapshot):
                         st.write(DISPLAY_NOTICE)
                     st.dataframe(display_table(ranked)[["标题", metric, "笔记链接"]], hide_index=True, width="stretch", column_config=links)
     from content_ui import render_content_analysis
-    with st.expander('内容分析与报告'):
+    with st.expander('内容分析与报告', expanded=st.session_state.get('analysis-report-open', False)):
         anchor('deep-analysis')
         render_content_analysis(snapshot)
     with dashboard:
@@ -607,7 +607,7 @@ def main():
         'source_kind': '模拟数据演示（非真实运营数据）' if is_demo else 'Excel上传', 'is_demo': is_demo,
         'scope': f'{uploaded.name} / {sheet} / 第{header_row}行表头；账号：{account_name}；共{len(account_frame)}篇。',
         'stop_reason': '已读取所选Excel明细', 'requested_limit': len(account_frame)}
-    with st.expander('内容分析与报告'):
+    with st.expander('内容分析与报告', expanded=st.session_state.get('analysis-report-open', False)):
         anchor('deep-analysis')
         render_period_comparison(current_snapshot)
         render_content_analysis(current_snapshot)

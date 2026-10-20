@@ -358,7 +358,11 @@ def render_overview(frame, snapshot=None):
                 st.info('暂无足够数据生成建议')
             else:
                 st.html('<ol class="advice-list">' + ''.join(f'<li>{escape(item)}</li>' for item in advice) + '</ol>')
-            st.html('<a class="advice-more" href="#deep-analysis" target="_self">查看完整分析 →</a>')
+            st.button('查看完整分析 →', key='open-analysis-report', on_click=open_analysis_report)
+
+
+def open_analysis_report():
+    st.session_state['analysis-report-open'] = True
 
 
 def render_guide():
