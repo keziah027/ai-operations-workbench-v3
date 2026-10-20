@@ -22,7 +22,7 @@ class ProjectUITests(unittest.TestCase):
             app=AppTest.from_file(str(source),default_timeout=60).run()
             app.button('cover-start').click().run()
             app.session_state['public_snapshot']={'input':snapshot['url'],'data':snapshot}
-            app.radio[0].set_value('公开账号').run()
+            app.button('source-card-2').click().run()
             widget(app,'text_area','你的账号定位结论').set_value('保存后应恢复的定位').run()
             widget(app,'multiselect','本次分析重点（可多选）').set_value(['收藏沉淀']).run()
             widget(app,'button','保存项目').click().run()
@@ -32,6 +32,7 @@ class ProjectUITests(unittest.TestCase):
             self.assertEqual(stored['state']['settings']['position'],'保存后应恢复的定位')
             fresh=AppTest.from_file(str(source),default_timeout=60).run()
             fresh.button('cover-start').click().run()
+            fresh.button('source-card-0').click().run()
             widget(fresh,'selectbox','选择已保存项目').set_value(entries[0]['id']).run()
             widget(fresh,'button','打开项目').click().run()
             self.assertFalse(fresh.exception,fresh.exception)
@@ -42,7 +43,8 @@ class ProjectUITests(unittest.TestCase):
             updated=deepcopy(snapshot); updated['captured_at']='2026-09-29T11:00:00'; updated['notes']=updated['notes'][:3]
             updated['notes'][0]['点赞']=999
             fresh.session_state['public_snapshot']={'input':updated['url'],'data':updated}
-            fresh.radio[0].set_value('公开账号').run()
+            fresh.button('source-back').click().run()
+            fresh.button('source-card-2').click().run()
             self.assertFalse(fresh.exception,fresh.exception)
             self.assertEqual(widget(fresh,'text_area','你的账号定位结论').value,'保存后应恢复的定位')
             self.assertEqual(len(captured['analysis']['detail']),3)

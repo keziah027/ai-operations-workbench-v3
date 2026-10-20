@@ -363,7 +363,7 @@ def main():
     st.set_page_config(page_title="AI运营分析台", page_icon="✦", layout="wide", initial_sidebar_state="auto")
     st.html("<style>" + Path(__file__).with_name("theme.css").read_text(encoding="utf-8") + "</style>")
     from cover_ui import render_cover
-    from source_picker import retain_upload
+    from navigation import retain_upload
     st.session_state.setdefault('cover-open', not any(st.session_state.get(key)
         for key in ('excel-upload', 'demo_scenario', 'public_snapshot', 'creator_snapshot', 'active_project')))
     if st.session_state['cover-open']:
@@ -372,21 +372,20 @@ def main():
         retain_upload()
         return
     from glass_ui import render_empty, render_overview, render_guide, anchor
-    from workspace_navigation import render_hero, render_workspace_menu
+    from navigation import render_hero, current_source
     from real_cases import list_cases
     cases = list_cases()
-    from source_picker import SOURCES, render_source_picker, retain_upload
+    from navigation import render_source_picker, retain_upload
     st.session_state.setdefault('source-picker-open', not any(st.session_state.get(key)
         for key in ('excel-upload', 'demo_scenario', 'public_snapshot', 'creator_snapshot', 'active_project')))
-    mode = st.session_state.setdefault('data-source', SOURCES[0])
+    mode = current_source()
     if st.session_state['source-picker-open'] and not st.session_state.get('show_saved_project'):
         render_source_picker()
-        render_workspace_menu(list(SOURCES))
         retain_upload()
         return
     if mode != 'Excel 文件' or st.session_state.get('show_saved_project'):
         retain_upload()
-    render_hero(list(SOURCES))
+    render_hero()
     if st.session_state.get('show_saved_project') and st.session_state.get('active_project'):
         from content_ui import render_content_analysis
         anchor('deep-analysis')

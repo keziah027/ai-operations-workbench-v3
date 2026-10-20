@@ -35,7 +35,7 @@ def loaded_app():
     snapshot,_=fixture(); snapshot['url']='https://www.xiaohongshu.com/user/profile/testmbti'
     snapshot.update(profile_text='模拟测试简介',stop_reason='测试样本已加载')
     app.session_state['public_snapshot']={'input':snapshot['url'],'data':snapshot}
-    app.radio[0].set_value('公开账号').run()
+    app.button('source-card-2').click().run()
     return app,snapshot
 
 

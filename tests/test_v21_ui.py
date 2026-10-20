@@ -33,7 +33,9 @@ class UIRegressionTests(unittest.TestCase):
                           'bio':case['bio'],'captured_at':f'2026-09-26T12:00:0{index}+08:00','profile_text':'测试数据',
                           'notes':notes,'stop_reason':'测试完成'}
                 app.session_state['public_snapshot']={'input':snapshot['url'],'data':snapshot}
-                app.radio[0].set_value('公开账号').run()
+                if index:
+                    app.button('source-back').click().run()
+                app.button('source-card-2').click().run()
                 self.assertFalse(app.exception,app.exception)
                 self.assertEqual(captured['analysis']['goals'],[])
                 widget(app,'multiselect','内容领域（可多选）').set_value(case['domains']).run()
@@ -89,7 +91,8 @@ class UIRegressionTests(unittest.TestCase):
                      'platform_total':8,'complete_filtered':True,'stop_reason':'测试完成','warnings':[],
                      'source':'https://creator.xiaohongshu.com/statistics/data-analysis'}
             app.session_state['creator_snapshot']=creator
-            app.radio[0].set_value('我的账号后台').run()
+            app.button('source-back').click().run()
+            app.button('source-card-3').click().run()
             self.assertFalse(app.exception,app.exception)
             self.assertEqual(captured['analysis']['goals'],[])
             self.assertEqual(captured['analysis']['position'],'')

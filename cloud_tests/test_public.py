@@ -101,8 +101,9 @@ class PublicTests(unittest.TestCase):
         fresh.button('source-card-0').click().run()
         self.assertEqual(len(fresh.session_state['_private_projects']), 0)
         self.assertEqual(widget(fresh, 'selectbox', '选择已保存项目').options, ['请选择项目'])
-        for mode in ['公开账号', '我的账号后台']:
-            fresh.radio[0].set_value(mode).run()
+        for index in (2, 3):
+            fresh.button('source-back').click().run()
+            fresh.button(f'source-card-{index}').click().run()
             self.assertFalse(fresh.exception, fresh.exception)
             self.assertFalse(any('登录窗口' in button.label for button in fresh.button))
 

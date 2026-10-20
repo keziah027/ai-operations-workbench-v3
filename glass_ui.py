@@ -36,13 +36,6 @@ def anchor(name):
     st.html(f'<div id="{name}" class="section-anchor"></div>')
 
 
-def start_upload():
-    st.session_state['source-picker-open'] = False
-    st.session_state['data-source'] = 'Excel 文件'
-    st.session_state['show_saved_project'] = False
-    st.session_state['open-upload'] = True
-
-
 def render_empty():
     # A quiet entry state, without example metrics or promotional feature cards.
     st.html('<div class="empty-state compact-empty">暂无分析数据</div>')

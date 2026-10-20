@@ -11,7 +11,10 @@ APP = Path(__file__).parents[1] / 'app.py'
 class SourcePickerTests(unittest.TestCase):
     def app(self):
         app = AppTest.from_file(str(APP), default_timeout=60).run()
-        return app.button('cover-start').click().run()
+        app.button('cover-start').click().run()
+        self.assertEqual(len(app.get('popover')), 0)
+        self.assertEqual(len(app.radio), 0)
+        return app
 
     def clean(self, app):
         self.assertFalse(app.exception, app.exception)
@@ -59,6 +62,63 @@ class SourcePickerTests(unittest.TestCase):
         self.assertEqual(app.session_state['source-case-choice'], case_id)
         self.assertEqual(app.session_state['active-real-case-id'], case_id)
         self.assertEqual(app.session_state['editor-state-regression-sentinel'], {'annotations': ['retained']})
+
+
+    @patch.dict(os.environ, {'APP_MODE': 'public'})
+    def test_all_cases_load_and_export_without_route_changes(self):
+        import excel_export
+        from real_cases import list_cases
+        from io import BytesIO
+        from openpyxl import load_workbook
+        captured = {}
+        original = excel_export.public_workbook
+        def export(snapshot, analysis):
+            result = original(snapshot, analysis)
+            captured.update(name=snapshot['name'], notes=snapshot['notes'], excel=result)
+            return result
+        with patch('excel_export.public_workbook', side_effect=export):
+            app = self.app()
+            # A browser may retain the old source radio's Excel value.
+            app.session_state['data-source'] = 'Excel 文件'
+            app.button('source-card-1').click().run()
+            for index, case in enumerate(list_cases()):
+                if index:
+                    app.selectbox('source-case-choice').select(case['id']).run()
+                next(b for b in app.button if b.label == '加载真实账号案例').click().run()
+                self.clean(app)
+                self.assertEqual(app.session_state['active-data-source'], '真实账号案例')
+                self.assertEqual(captured['name'], case['name'])
+                self.assertEqual(len(captured['notes']), 18)
+                self.assertFalse(any(s.label == '选择演示账号类型' for s in app.selectbox))
+                book = load_workbook(BytesIO(captured['excel']), read_only=True)
+                self.assertEqual(book['笔记明细'].max_row, 22)
+                order = next(s for s in app.selectbox if s.label == '时间排序')
+                order.select(order.options[-1]).run()
+                app.run()
+                self.assertEqual(app.session_state['active-data-source'], '真实账号案例')
+                app.button('source-back').click().run()
+                self.assertEqual(len(app.get('popover')), 0)
+                app.button('source-card-1').click().run()
+                self.assertEqual(app.selectbox('source-case-choice').value, case['id'])
+                self.assertEqual(captured['name'], case['name'])
+
+    @patch.dict(os.environ, {'APP_MODE': 'public'})
+    def test_demo_and_case_remain_separate_across_navigation(self):
+        app = self.app()
+        app.button('source-card-0').click().run()
+        next(b for b in app.button if b.label == '加载演示数据').click().run()
+        scenario = app.session_state['demo_scenario']
+        for index in (1, 2, 3):
+            app.button('source-back').click().run()
+            app.button(f'source-card-{index}').click().run()
+            self.clean(app)
+            self.assertFalse(any(s.label == '选择演示账号类型' for s in app.selectbox))
+            self.assertEqual(app.session_state['demo_scenario'], scenario)
+        app.button('source-back').click().run()
+        app.button('source-card-0').click().run()
+        self.clean(app)
+        self.assertEqual(app.session_state['active-data-source'], 'Excel 文件')
+        self.assertEqual(next(m.value for m in app.metric if m.label == '总发布篇数'), '18')
 
 
 if __name__ == '__main__':
